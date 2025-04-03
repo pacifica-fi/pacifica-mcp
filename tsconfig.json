@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",            // 使用较新的 ECMAScript 版本，Node.js 现代版本都支持
+    "module": "NodeNext",          // 使用 Node.js 的模块系统
+    "moduleResolution": "NodeNext", // Node.js 的模块解析策略
+    "outDir": "./dist",           // 编译输出目录
+    "rootDir": "./src",           // 源代码目录
+    "strict": true,               // 启用严格的类型检查
+    "esModuleInterop": true,      // 更好的模块互操作性
+    "skipLibCheck": true,         // 跳过对声明文件的检查
+    "forceConsistentCasingInFileNames": true, // 强制文件名大小写一致
+    "declaration": true,          // 生成声明文件
+    "sourceMap": true,           // 生成源映射文件，方便调试
+    "allowJs": true,             // 允许编译 JavaScript 文件
+    "resolveJsonModule": true,   // 允许导入 JSON 文件
+    "types": ["node"]           // 包含 node 类型定义
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
