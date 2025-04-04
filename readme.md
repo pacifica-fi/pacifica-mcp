@@ -11,7 +11,7 @@ Add the following to your claude_desktop_config.json:
       "command": "npx",
       "args": [
         "-y",
-        "@pacifica-fi/mcp"
+        "@pacifica-fi/mcp-server"
       ],
       "env": {
         "PRIVATE_KEY": "2LyppieGiFKypm5X4usYbFHFznHmePvrFe9SqS1yasUwsozFwEUve3vcQET52jge3Ceu8wjf2q2fvDCCB9xQs1xc",

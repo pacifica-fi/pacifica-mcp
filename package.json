@@ -1,5 +1,5 @@
 {
-	"name": "@pacifica/mcp-server",
+	"name": "@pacifica-fi/mcp-server",
 	"version": "0.0.1",
 	"description": "MCP server for Pacifica Exchange API",
 	"type": "module",
