@@ -3,3 +3,9 @@ pnpm-lock.yaml
 *dist*
 .env
 .env.*
+
+# Nix / direnv
+.direnv
+.envrc.local
+result
+result-*
