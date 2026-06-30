@@ -1,19 +1,55 @@
 {
 	"name": "@pacifica-fi/mcp-server",
-	"version": "0.0.1",
-	"description": "MCP server for Pacifica Exchange API",
+	"version": "0.1.0",
+	"description": "MCP server for the Pacifica perpetual-futures exchange API",
 	"type": "module",
+	"license": "MIT",
+	"author": "Pacifica",
+	"homepage": "https://github.com/pacifica-fi/pacifica-mcp#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/pacifica-fi/pacifica-mcp.git"
+	},
+	"bugs": {
+		"url": "https://github.com/pacifica-fi/pacifica-mcp/issues"
+	},
+	"keywords": [
+		"mcp",
+		"model-context-protocol",
+		"pacifica",
+		"perpetuals",
+		"trading",
+		"solana"
+	],
+	"engines": {
+		"node": ">=18"
+	},
 	"bin": {
 		"mcp-server-pacifica": "dist/index.js"
 	},
 	"files": [
 		"dist"
 	],
+	"publishConfig": {
+		"access": "public"
+	},
 	"scripts": {
 		"build": "tsc && shx chmod +x dist/*.js",
+		"test": "tsc --noEmit",
 		"prepare": "npm run build",
 		"watch": "tsc --watch",
-		"dev": "tsx watch src/index.ts"
+		"dev": "tsx watch src/index.ts",
+		"smoke": "tsx scripts/smoke.ts",
+		"smoke:1a": "tsx scripts/smoke-1a.ts",
+		"smoke:1b": "tsx scripts/smoke-1b.ts",
+		"smoke:1c": "tsx scripts/smoke-1c.ts",
+		"smoke:1d": "tsx scripts/smoke-1d.ts",
+		"smoke:3a": "tsx scripts/smoke-3a.ts",
+		"smoke:3b": "tsx scripts/smoke-3b.ts",
+		"smoke:3c": "tsx scripts/smoke-3c.ts",
+		"smoke:3d": "tsx scripts/smoke-3d.ts",
+		"smoke:3e": "tsx scripts/smoke-3e.ts",
+		"smoke:agent": "tsx scripts/smoke-agent.ts"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.7.0",
@@ -23,6 +59,9 @@
 		"zod": "^3.24.2"
 	},
 	"devDependencies": {
+		"@coral-xyz/anchor": "^0.30.1",
+		"@solana/spl-token": "^0.4.9",
+		"@solana/web3.js": "^1.98.0",
 		"@types/node": "^22.13.10",
 		"shx": "^0.3.4",
 		"typescript": "^5.8.2",
