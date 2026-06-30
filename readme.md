@@ -261,11 +261,11 @@ limits):
 
 - **`mintUsdp`** — testnet only. Mints test USDP into the wallet's token account.
 - **`depositUsdp`** — moves the wallet's USDC/USDP into the exchange balance used
-  for trading. Works on testnet and mainnet. On **mainnet it moves real USDC** and
-  requires `PACIFICA_PROGRAM_ID` to be set (the testnet program is not deployed on
-  mainnet, so there is no safe default); `PACIFICA_USDC_MINT` may be overridden but
-  defaults to circle USDC on mainnet. A typical testnet flow is `mintUsdp` then
-  `depositUsdp`.
+  for trading. Works on testnet and mainnet (selected by `PACIFICA_BASE_URL`). On
+  **mainnet it moves real USDC** via the Pacifica mainnet program. The program id
+  and collateral mint default per network and can be overridden with
+  `PACIFICA_PROGRAM_ID` / `PACIFICA_USDC_MINT`. A typical testnet flow is
+  `mintUsdp` then `depositUsdp`.
 
 ## License
 

@@ -5,15 +5,16 @@
  * tests the shipped code path directly (not a mirror).
  *
  *   LAYER 0  offline structural/correctness   (always runs; no creds, no network)
- *     Case A  network config      resolveOnchainConfig: testnet fully known;
- *                                  mainnet errors with no program id, resolves with one.
- *     Case B  built instruction   buildDepositIx does not throw, derives the
- *                                  depositor USDC ATA + exchange vault (= central_state
+ *     Case A  network config      resolveOnchainConfig: testnet + mainnet both
+ *                                  resolve to their known program/USDC/central_state;
+ *                                  an invalid program id override is rejected.
+ *     Case B  built instruction   buildDepositIx (testnet) does not throw, derives
+ *                                  the depositor USDC ATA + exchange vault (= central_state
  *                                  ATA, == the known vault), encodes amount * 1e6, and
  *                                  carries the IDL's full account set.
  *     Case C  no-key guard        depositUsdp without a key returns the error response.
- *     Case D  mainnet guard        depositUsdp on mainnet with no program id refuses
- *                                  (no network call), rather than guessing an address.
+ *     Case D  mainnet build       buildDepositIx against the real mainnet program builds
+ *                                  the mainnet vault/central_state (verified on mainnet-beta).
  *
  *   LAYER 1  live deposit         (gated: SMOKE_DEPOSIT=1 + PRIVATE_KEY; testnet)
  *     Case E  real deposit        tops the wallet up via mintUsdp if needed, deposits,
@@ -44,6 +45,10 @@ const RPC = process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
 const DEPOSIT_AMOUNT = Number(process.env.SMOKE_DEPOSIT_AMOUNT ?? '50');
 const KNOWN_VAULT = '5SDFdHZGTZbyRYu54CgmRkCGnPHC5pYaN27p7XGLqnBs';
 const KNOWN_CENTRAL_STATE = '2zPRq1Qvdq5A4Ld6WsH7usgCge4ApZRYfhhf5VAjfXxv';
+// Mainnet values, verified to exist on mainnet-beta during development.
+const KNOWN_MAINNET_PROGRAM = 'PCFA5iYgmqK6MqPhWNKg7Yv7auX7VZ4Cx7T1eJyrAMH';
+const KNOWN_MAINNET_CENTRAL_STATE = '9Gdmhq4Gv1LnNMp7aiS1HSVd7pNnXNMsbuXALCQRmGjY';
+const KNOWN_MAINNET_VAULT = '72R843XwZxqWhsJceARQQTTbYtWy6Zw9et2YV4FpRHTa';
 
 // deterministic, network-free dummy keypair + its base58 secret (for offline build).
 const dummyKeypair = Keypair.fromSeed(new Uint8Array(32).fill(7));
@@ -79,20 +84,24 @@ const caseA = (): boolean => {
     log(`  testnet: program=${t.programId.toBase58()} usdc=${t.usdcMint.toBase58()} cs=${t.centralState.toBase58()}`);
     log(`  testnet resolves correctly? ${testnetOk}`);
 
-    // mainnet without a program id: must refuse (no guessing).
-    const mNoCfg = withProgramIdEnv(undefined, () => resolveOnchainConfig('https://api.pacifica.fi'));
-    const mainnetRefuses = 'error' in mNoCfg;
-    log(`  mainnet w/o program id refuses? ${mainnetRefuses}`);
+    // mainnet (default config): real program + real USDC + derived central_state,
+    // all verified to exist on mainnet-beta.
+    const m = withProgramIdEnv(undefined, () => resolveOnchainConfig('https://api.pacifica.fi'));
+    if ('error' in m) { log(no(`Case A FAIL — mainnet errored: ${m.error}`)); return false; }
+    const mainnetOk =
+      m.network === 'mainnet'
+      && m.programId.toBase58() === KNOWN_MAINNET_PROGRAM
+      && m.usdcMint.toBase58() === MAINNET_USDC_MINT
+      && m.centralState.toBase58() === KNOWN_MAINNET_CENTRAL_STATE;
+    log(`  mainnet: program=${m.programId.toBase58()} usdc=${m.usdcMint.toBase58()} cs=${m.centralState.toBase58()}`);
+    log(`  mainnet resolves correctly? ${mainnetOk}`);
 
-    // mainnet with a program id: resolves, real USDC mint, derived central_state.
-    const mCfg = withProgramIdEnv(idlProgramId(), () => resolveOnchainConfig('https://api.pacifica.fi'));
-    const mainnetOk = !('error' in mCfg)
-      && mCfg.network === 'mainnet'
-      && mCfg.usdcMint.toBase58() === MAINNET_USDC_MINT
-      && mCfg.centralState.toBase58() === deriveCentralState(new PublicKey(idlProgramId())).toBase58();
-    log(`  mainnet w/ program id resolves (real USDC + derived cs)? ${mainnetOk}`);
+    // an invalid program id override is rejected (not silently used).
+    const bad = withProgramIdEnv('not-a-valid-key', () => resolveOnchainConfig('https://api.pacifica.fi'));
+    const rejectsBad = 'error' in bad;
+    log(`  invalid PACIFICA_PROGRAM_ID rejected? ${rejectsBad}`);
 
-    const pass = testnetOk && mainnetRefuses && mainnetOk;
+    const pass = testnetOk && mainnetOk && rejectsBad;
     log(pass ? ok('Case A PASS') : no('Case A FAIL'));
     return pass;
   } catch (e: any) {
@@ -163,20 +172,35 @@ const caseC = async (): Promise<boolean> => {
   }
 };
 
-// Case D: mainnet without a configured program id must refuse (no network call).
+// Case D: mainnet deposit instruction builds against the real mainnet program /
+// vault / mint (all verified to exist on mainnet-beta). Offline — no send.
 const caseD = async (): Promise<boolean> => {
-  log('\n=== Case D: mainnet-unconfigured guard (offline) ===');
+  log('\n=== Case D: mainnet deposit build (offline) ===');
   try {
-    const res = await withProgramIdEnv(undefined, () => depositUsdp({
-      privateKey: dummySecret, rpcUrl: 'http://127.0.0.1:1', baseUrl: 'https://api.pacifica.fi', amount: 1,
-    }));
-    const text = res?.content?.[0]?.text ?? '';
-    log(`  response: ${text}`);
-    const pass = /not.*set|PACIFICA_PROGRAM_ID|mainnet/i.test(text) && /Error/.test(text);
+    const cfg = withProgramIdEnv(undefined, () => resolveOnchainConfig('https://api.pacifica.fi'));
+    if ('error' in cfg) { log(no(`Case D FAIL — mainnet config errored: ${cfg.error}`)); return false; }
+
+    const { program, keypair } = makeProgram(dummySecret, 'http://127.0.0.1:8899', cfg.programId);
+    const { instruction, pacificaVault } =
+      await buildDepositIx(program, keypair.publicKey, cfg.usdcMint, cfg.centralState, 50);
+
+    const programOk = cfg.programId.toBase58() === KNOWN_MAINNET_PROGRAM;
+    const vaultOk = pacificaVault.toBase58() === KNOWN_MAINNET_VAULT;
+    const csOk = cfg.centralState.toBase58() === KNOWN_MAINNET_CENTRAL_STATE;
+    const decoded = program.coder.instruction.decode(instruction.data);
+    const amountOk = decoded?.name === 'deposit'
+      && decoded?.data?.amount?.toString() === String(50 * 1_000_000);
+
+    log(`  mainnet program?               ${programOk}  (${cfg.programId.toBase58()})`);
+    log(`  mainnet vault (cs ATA)?        ${vaultOk}  (${pacificaVault.toBase58()})`);
+    log(`  mainnet central_state derived? ${csOk}  (${cfg.centralState.toBase58()})`);
+    log(`  decoded ${decoded?.name} amount=${decoded?.data?.amount?.toString()}  ok? ${amountOk}`);
+
+    const pass = programOk && vaultOk && csOk && amountOk;
     log(pass ? ok('Case D PASS') : no('Case D FAIL'));
     return pass;
   } catch (e: any) {
-    log(no(`Case D FAIL — threw (should have returned an error response): ${e.message}`));
+    log(no(`Case D FAIL — threw: ${e.message}`));
     return false;
   }
 };
@@ -267,7 +291,7 @@ const main = async () => {
   results.push(['A network config', caseA()]);
   results.push(['B built instruction', await caseB()]);
   results.push(['C no-key guard', await caseC()]);
-  results.push(['D mainnet guard', await caseD()]);
+  results.push(['D mainnet build', await caseD()]);
   results.push(['E live deposit', await caseE()]);
 
   log('\n=== SUMMARY ===');

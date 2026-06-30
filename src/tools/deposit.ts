@@ -95,8 +95,8 @@ export function registerDepositTools(server: McpServer): void {
     'depositUsdp',
     'Deposit the wallet\'s USDC/USDP into the Pacifica exchange account (the balance used for '
     + 'trading). Requires PRIVATE_KEY (signs an on-chain Solana transaction). The funds must '
-    + 'already be in the wallet (on testnet, use mintUsdp first). Works on testnet and mainnet; '
-    + 'on MAINNET this moves REAL USDC and requires PACIFICA_PROGRAM_ID to be set.',
+    + 'already be in the wallet (on testnet, use mintUsdp first). Works on testnet and mainnet '
+    + '(selected by PACIFICA_BASE_URL); on MAINNET this moves REAL USDC.',
     {
       amount: z.number().positive()
         .describe('Amount of USDC/USDP to deposit into the exchange'),

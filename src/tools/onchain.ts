@@ -24,6 +24,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // base-unit u64.
 export const USDC_DECIMALS = 1_000_000;
 
+// Pacifica bridge/exchange program ids (perp-backend common/src/constants.rs,
+// BRIDGE_PROGRAM_ID). The testnet id also comes from the shipped IDL via
+// idlProgramId(); the mainnet program is deployed at a different address.
+export const MAINNET_PROGRAM_ID = 'PCFA5iYgmqK6MqPhWNKg7Yv7auX7VZ4Cx7T1eJyrAMH';
+
 // Testnet on-chain addresses (the shipped IDL is the testnet program).
 export const TESTNET_USDC_MINT = 'USDPqRbLidFGufty2s3oizmDEKdqx7ePTqzDMbf5ZKM';
 // Mainnet circle USDC.
@@ -75,24 +80,17 @@ export interface OnchainConfig {
 
 // Resolve the on-chain parameters for the active deployment from the REST base
 // URL, with env overrides as the configuration/safety seam:
-//   PACIFICA_PROGRAM_ID  - program id (REQUIRED on mainnet; the testnet program
-//                          is not deployed there, so there is no safe default)
+//   PACIFICA_PROGRAM_ID  - program id (defaults: shipped IDL on testnet,
+//                          MAINNET_PROGRAM_ID on mainnet)
 //   PACIFICA_USDC_MINT   - collateral mint (defaults per network)
-// Returns a string error instead of throwing when mainnet is unconfigured, so the
-// caller can surface it without risking a wrong-account send.
+// Returns a string error (instead of throwing) if an override is not valid
+// base58, so the caller can surface it without risking a wrong-account send.
 export function resolveOnchainConfig(baseUrl: string): OnchainConfig | { error: string } {
   const isTestnet = baseUrl.includes('test-api.pacifica.fi');
   const network: PacificaNetwork = isTestnet ? 'testnet' : 'mainnet';
 
   const programIdStr = process.env.PACIFICA_PROGRAM_ID
-    ?? (isTestnet ? idlProgramId() : undefined);
-  if (!programIdStr) {
-    return {
-      error:
-        'Mainnet on-chain config is not set: the testnet program is not deployed on mainnet. '
-        + 'Set PACIFICA_PROGRAM_ID to the Pacifica mainnet program id to enable mainnet deposits.',
-    };
-  }
+    ?? (isTestnet ? idlProgramId() : MAINNET_PROGRAM_ID);
 
   const usdcMintStr = process.env.PACIFICA_USDC_MINT
     ?? (isTestnet ? TESTNET_USDC_MINT : MAINNET_USDC_MINT);
