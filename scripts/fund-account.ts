@@ -26,6 +26,11 @@ import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token
 import bs58 from 'bs58';
 import axios from 'axios';
 
+// anchor ships as CommonJS; under NodeNext ESM the namespace member `anchor.BN`
+// is undefined (BN lives on the default export). Pull it off `default`, falling
+// back to the namespace for environments that do surface it.
+const BN = (anchor as any).default?.BN ?? (anchor as any).BN;
+
 // Constants from perp-frontend/constants/envs/testnet.ts:3-10
 const RPC = process.env.SOLANA_RPC_URL
   ?? 'https://api.devnet.solana.com';
@@ -72,7 +77,7 @@ const main = async () => {
     [anchor.utils.bytes.utf8.encode('user_account'), keypair.publicKey.toBuffer()],
     program.programId,
   );
-  const bn = new anchor.BN(amountUsdc * 1_000_000); // 6 decimals
+  const bn = new BN(amountUsdc * 1_000_000); // 6 decimals
   await program.methods.mintTestUsdc(bn).accountsPartial({
     user: keypair.publicKey, userAccount, userUsdcTestAccount: userUsdcATA,
     usdcTestMint: USDC_MINT, centralState: CENTRAL_STATE,

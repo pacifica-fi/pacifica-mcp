@@ -234,14 +234,38 @@ Docs: <https://github.com/charmbracelet/crush>
 ## Development
 
 ```bash
-npm install
-npm run build      # type-check and emit dist/
-npm run dev        # run from source with tsx (watch mode)
+npm install        # install dependencies
+npm run build      # type-check + emit dist/
+npm run dev        # run the server from source (tsx watch)
+npm test           # type-check only (tsc --noEmit)
+npm run gen:keys   # generate 2 fresh keypairs (main + agent)
+npm run smoke:3a   # live testnet smoke tests (read-only; signed suites need creds)
+npm run smoke:faucet  # faucet tests (offline by default; live mint needs creds + flag)
+npm run smoke:deposit # deposit tests (offline by default; live deposit needs creds + flag)
 ```
 
 The `scripts/` directory contains live smoke tests against the Pacifica testnet
 (`npm run smoke:1a`, `smoke:agent`, etc.). Tests that need credentials are skipped
 unless `ADDRESS` / `PRIVATE_KEY` / `AGENT_PRIVATE_KEY` are set in the environment.
+`smoke:faucet` runs offline structural checks by default; its live-mint leg runs
+only with `SMOKE_FAUCET_MINT=1` and `PRIVATE_KEY` set (mints test USDP on devnet).
+`smoke:deposit` likewise runs offline by default; its live-deposit leg runs only
+with `SMOKE_DEPOSIT=1` and `PRIVATE_KEY` set.
+
+### On-chain tools (faucet + deposit)
+
+Two tools act on Solana directly rather than through the REST API, so they need
+`PRIVATE_KEY` (an agent key cannot sign on-chain transactions) and use
+`SOLANA_RPC_URL` (defaults to public devnet; set a dedicated RPC to avoid rate
+limits):
+
+- **`mintUsdp`** — testnet only. Mints test USDP into the wallet's token account.
+- **`depositUsdp`** — moves the wallet's USDC/USDP into the exchange balance used
+  for trading. Works on testnet and mainnet (selected by `PACIFICA_BASE_URL`). On
+  **mainnet it moves real USDC** via the Pacifica mainnet program. The program id
+  and collateral mint default per network and can be overridden with
+  `PACIFICA_PROGRAM_ID` / `PACIFICA_USDC_MINT`. A typical testnet flow is
+  `mintUsdp` then `depositUsdp`.
 
 ## License
 

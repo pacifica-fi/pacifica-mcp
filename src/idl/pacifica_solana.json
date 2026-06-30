@@ -1,0 +1,1027 @@
+{
+  "address": "peRPsYCcB1J9jvrs29jiGdjkytxs8uHLmSPLKKP9ptm",
+  "metadata": {
+    "name": "pacifica_solana",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "batch_withdraw",
+      "discriminator": [37, 76, 149, 71, 94, 36, 245, 195],
+      "accounts": [
+        {
+          "name": "withdraw_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "central_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99, 101, 110, 116, 114, 97, 108, 95, 115, 116, 97, 116, 101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pacifica_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "central_state"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206,
+                  235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140,
+                  245, 133, 126, 255, 0, 169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_test_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "pacifica_fallback",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112, 97, 99, 105, 102, 105, 99, 97, 45, 102, 97, 108, 108, 98,
+                  97, 99, 107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "usdc_test_mint",
+          "relations": ["central_state"]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "event_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  95, 95, 101, 118, 101, 110, 116, 95, 97, 117, 116, 104, 111,
+                  114, 105, 116, 121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amounts",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "UserWithdraw"
+              }
+            }
+          }
+        },
+        {
+          "name": "nonce",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "change_mint_limit",
+      "discriminator": [158, 88, 91, 220, 24, 69, 171, 124],
+      "accounts": [
+        {
+          "name": "program_authority",
+          "writable": true,
+          "signer": true,
+          "relations": ["central_state"]
+        },
+        {
+          "name": "central_state",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_mint_limit",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "deposit",
+      "discriminator": [242, 35, 198, 137, 82, 225, 242, 182],
+      "accounts": [
+        {
+          "name": "depositor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "depositor_usdc_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "depositor"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206,
+                  235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140,
+                  245, 133, 126, 255, 0, 169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_test_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "central_state",
+          "writable": true
+        },
+        {
+          "name": "pacifica_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "central_state"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206,
+                  235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140,
+                  245, 133, 126, 255, 0, 169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_test_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "usdc_test_mint",
+          "relations": ["central_state"]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "event_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  95, 95, 101, 118, 101, 110, 116, 95, 97, 117, 116, 104, 111,
+                  114, 105, 116, 121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_part_one",
+      "discriminator": [57, 82, 171, 208, 112, 125, 215, 14],
+      "accounts": [
+        {
+          "name": "program_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "central_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99, 101, 110, 116, 114, 97, 108, 95, 115, 116, 97, 116, 101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_test_mint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "metadata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 101, 116, 97, 100, 97, 116, 97]
+              },
+              {
+                "kind": "account",
+                "path": "token_metadata_program"
+              },
+              {
+                "kind": "account",
+                "path": "usdc_test_mint"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "token_metadata_program"
+            }
+          }
+        },
+        {
+          "name": "token_metadata_program"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "pause_authorities",
+          "type": {
+            "array": ["pubkey", 3]
+          }
+        }
+      ]
+    },
+    {
+      "name": "initialize_part_two",
+      "discriminator": [12, 3, 84, 77, 92, 246, 127, 43],
+      "accounts": [
+        {
+          "name": "program_authority",
+          "writable": true,
+          "signer": true,
+          "relations": ["central_state"]
+        },
+        {
+          "name": "central_state",
+          "writable": true
+        },
+        {
+          "name": "usdc_test_mint",
+          "relations": ["central_state"]
+        },
+        {
+          "name": "pacifica_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "central_state"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206,
+                  235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140,
+                  245, 133, 126, 255, 0, 169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_test_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "pacifica_fallback",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112, 97, 99, 105, 102, 105, 99, 97, 45, 102, 97, 108, 108, 98,
+                  97, 99, 107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "mint_test_usdc",
+      "discriminator": [118, 144, 78, 118, 155, 214, 185, 186],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117, 115, 101, 114, 95, 97, 99, 99, 111, 117, 110, 116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_usdc_test_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206,
+                  235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140,
+                  245, 133, 126, 255, 0, 169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_test_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "usdc_test_mint",
+          "writable": true,
+          "relations": ["central_state"]
+        },
+        {
+          "name": "central_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99, 101, 110, 116, 114, 97, 108, 95, 115, 116, 97, 116, 101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "pause",
+      "discriminator": [211, 22, 221, 251, 74, 121, 193, 47],
+      "accounts": [
+        {
+          "name": "pause_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "central_state",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_program_authority",
+      "discriminator": [98, 61, 170, 198, 26, 58, 164, 109],
+      "accounts": [
+        {
+          "name": "program_authority",
+          "writable": true,
+          "signer": true,
+          "relations": ["central_state"]
+        },
+        {
+          "name": "central_state",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_program_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "set_withdraw_authority",
+      "discriminator": [199, 146, 140, 67, 1, 90, 8, 222],
+      "accounts": [
+        {
+          "name": "program_authority",
+          "writable": true,
+          "signer": true,
+          "relations": ["central_state"]
+        },
+        {
+          "name": "central_state",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_withdraw_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "unpause",
+      "discriminator": [169, 144, 4, 38, 10, 141, 188, 255],
+      "accounts": [
+        {
+          "name": "program_authority",
+          "writable": true,
+          "signer": true,
+          "relations": ["central_state"]
+        },
+        {
+          "name": "central_state",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdraw_from_fallback",
+      "discriminator": [176, 44, 161, 162, 117, 190, 184, 28],
+      "accounts": [
+        {
+          "name": "withdraw_authority",
+          "signer": true,
+          "relations": ["central_state"]
+        },
+        {
+          "name": "central_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99, 101, 110, 116, 114, 97, 108, 95, 115, 116, 97, 116, 101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pacifica_fallback",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112, 97, 99, 105, 102, 105, 99, 97, 45, 102, 97, 108, 108, 98,
+                  97, 99, 107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient"
+        },
+        {
+          "name": "recipient_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "recipient"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206,
+                  235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140,
+                  245, 133, 126, 255, 0, 169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_test_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "usdc_test_mint",
+          "relations": ["central_state"]
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "CentralState",
+      "discriminator": [201, 49, 35, 231, 4, 164, 205, 91]
+    },
+    {
+      "name": "UserAccount",
+      "discriminator": [211, 33, 136, 16, 186, 110, 242, 127]
+    }
+  ],
+  "events": [
+    {
+      "name": "BatchCompletedEvent",
+      "discriminator": [101, 99, 213, 133, 23, 53, 0, 102]
+    },
+    {
+      "name": "CentralStateInitialized",
+      "discriminator": [144, 126, 49, 144, 184, 169, 243, 208]
+    },
+    {
+      "name": "DepositEvent",
+      "discriminator": [120, 248, 61, 83, 31, 142, 107, 144]
+    },
+    {
+      "name": "PauseDisabledEvent",
+      "discriminator": [196, 119, 145, 230, 209, 190, 186, 207]
+    },
+    {
+      "name": "PauseEnabledEvent",
+      "discriminator": [162, 45, 253, 48, 168, 147, 183, 204]
+    },
+    {
+      "name": "WithdrawEvent",
+      "discriminator": [22, 9, 133, 26, 160, 44, 71, 192]
+    },
+    {
+      "name": "WithdrawFromFallbackEvent",
+      "discriminator": [30, 98, 75, 72, 244, 199, 241, 13]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidMint",
+      "msg": "Invalid mint"
+    },
+    {
+      "code": 6001,
+      "name": "CentralStatePaused",
+      "msg": "Central state is paused"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidWithdrawAuthority",
+      "msg": "Invalid withdraw authority"
+    },
+    {
+      "code": 6003,
+      "name": "MismatchingLengths",
+      "msg": "Mismatching lengths"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidTokenAccount",
+      "msg": "Invalid token account"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidOwner",
+      "msg": "Invalid owner"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidNonce",
+      "msg": "Invalid nonce"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidProgramAuthority",
+      "msg": "Invalid program authority"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidPauseAuthority",
+      "msg": "Invalid pause authority"
+    },
+    {
+      "code": 6009,
+      "name": "MintLimitExceeded",
+      "msg": "Mint limit exceeded"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidMetadataProgram",
+      "msg": "Invalid metadata program"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidInitializationStatus",
+      "msg": "Invalid initialization status"
+    }
+  ],
+  "types": [
+    {
+      "name": "BatchCompletedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "nonce",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CentralState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "program_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "withdraw_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "withdraw_nonce",
+            "type": "u64"
+          },
+          {
+            "name": "deposit_nonce",
+            "type": "u64"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "pause_authorities",
+            "type": {
+              "array": ["pubkey", 3]
+            }
+          },
+          {
+            "name": "usdc_test_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint_limit",
+            "type": "u64"
+          },
+          {
+            "name": "initialization_status",
+            "type": {
+              "defined": {
+                "name": "InitializationStatus"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CentralStateInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "program_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "withdraw_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DepositEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "deposit_nonce",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitializationStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "Initialized"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PauseDisabledEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_state",
+            "type": "bool"
+          },
+          {
+            "name": "new_state",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PauseEnabledEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_state",
+            "type": "bool"
+          },
+          {
+            "name": "new_state",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint_amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserWithdraw",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "withdraw_id",
+            "type": "u64"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WithdrawEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "withdraw_id",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WithdrawFromFallbackEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}
