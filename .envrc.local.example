@@ -1,0 +1,22 @@
+# Per-machine dev overrides for direnv. Copy to .envrc.local (gitignored) and
+# fill in your own values:  cp .envrc.local.example .envrc.local
+#
+# These feed the live testnet smoke tests under scripts/ (npm run smoke:*).
+# Leave a value unset to skip the suites that need it (those cases SKIP, not fail).
+# NEVER put a real mainnet key here. Use a throwaway testnet account.
+
+# Account the actions apply to (main account or subaccount public address).
+# export ADDRESS="<your testnet account address>"
+
+# Main-account secret key (base58). Enables signed (POST) smoke cases.
+# export PRIVATE_KEY="<base58 testnet secret key>"
+
+# API agent (agent wallet) secret key, bound to ADDRESS. Enables smoke:agent.
+# export AGENT_PRIVATE_KEY="<base58 agent secret key>"
+
+# Second funded account for the fill rig (smoke:3e, SMOKE_FILL=1).
+# export MAKER_ADDRESS="<second testnet account address>"
+# export MAKER_PRIVATE_KEY="<base58 testnet secret key>"
+
+# API host. Defaults to testnet; set to production only deliberately.
+# export PACIFICA_BASE_URL="https://test-api.pacifica.fi"
