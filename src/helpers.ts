@@ -8,6 +8,11 @@ import nacl from 'tweetnacl';
 // production (https://api.pacifica.fi) or any other deployment.
 export const BASE_URL: string = process.env.PACIFICA_BASE_URL ?? 'https://test-api.pacifica.fi';
 
+// Solana RPC used by on-chain tools (faucet mint). Defaults to the public devnet
+// endpoint; set SOLANA_RPC_URL to a private/dedicated RPC (e.g. Helius) to avoid
+// public rate limits. NEVER hardcode an RPC with an embedded API key.
+export const SOLANA_RPC_URL: string = process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
+
 // Account the actions apply to (main account or subaccount public address). Required.
 export let address: string | undefined = process.env.ADDRESS;
 

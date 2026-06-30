@@ -234,9 +234,12 @@ Docs: <https://github.com/charmbracelet/crush>
 ## Development
 
 ```bash
-npm install
-npm run build      # type-check and emit dist/
-npm run dev        # run from source with tsx (watch mode)
+npm install        # install dependencies
+npm run build      # type-check + emit dist/
+npm run dev        # run the server from source (tsx watch)
+npm test           # type-check only (tsc --noEmit)
+npm run gen:keys   # generate 2 fresh keypairs (main + agent)
+npm run smoke:3a   # live testnet smoke tests (read-only; signed suites need creds)
 ```
 
 The `scripts/` directory contains live smoke tests against the Pacifica testnet

@@ -5,7 +5,8 @@ import { registerMarketTools } from './tools/markets.js';
 import { registerAccountTools } from './tools/account.js';
 import { registerOrderTools } from './tools/orders.js';
 import { registerSpotTools } from './tools/spot.js';
-import { address, privateKey, agentPrivateKey, agentWallet } from './helpers.js';
+import { registerFaucetTools } from './tools/faucet.js';
+import { BASE_URL, address, privateKey, agentPrivateKey, agentWallet } from './helpers.js';
 
 // Create an MCP server
 const server = new McpServer({
@@ -17,6 +18,10 @@ registerMarketTools(server);
 registerAccountTools(server);
 registerOrderTools(server);
 registerSpotTools(server);
+
+if (BASE_URL.includes('test-api.pacifica.fi')) {
+  registerFaucetTools(server);
+}
 
 // Report the active auth mode on stderr (stdout is the JSON-RPC channel and must
 // not be polluted). agent-key mode signs with AGENT_PRIVATE_KEY and sends
