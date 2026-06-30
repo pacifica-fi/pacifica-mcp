@@ -33,6 +33,7 @@
             echo "  npm run build      type-check + emit dist/"
             echo "  npm run dev        run the server from source (tsx watch)"
             echo "  npm test           type-check only (tsc --noEmit)"
+            echo "  npm run gen:keys   generate 2 fresh testnet keypairs (.envrc.local format)"
             echo "  npm run smoke:3a   live testnet smoke tests (read-only; signed suites need creds)"
             echo ""
             echo "  smoke-test creds: cp .envrc.local.example .envrc.local  (gitignored), then 'direnv allow'"
