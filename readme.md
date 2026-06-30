@@ -15,11 +15,29 @@ place trades on your behalf.
 - For trading (optional): a signing key — either your main wallet's secret key
   or, recommended, a revocable **agent key** bound to your account
 
-### Install (Claude Desktop)
+### Install
+
+Every MCP client runs the server the same way — the command is
+`npx -y @pacifica-fi/mcp-server` with the environment variables `ADDRESS` plus
+`AGENT_PRIVATE_KEY` or `PRIVATE_KEY` (omit the key for read-only). The `npx -y`
+command downloads and runs the latest published version automatically, so there
+is no manual install step. Only the config format differs per client; the examples
+below use agent-key mode, so swap in `PRIVATE_KEY`, or drop the key entirely for
+read-only (see [Environment variables](#environment-variables) and
+[Modes](#modes)).
+
+On startup the server logs the active account and auth mode to stderr (visible in
+your client's MCP logs), e.g. `[pacifica-mcp] account=<address> mode=agent-key`.
+
+> **Network:** by default the server targets the Pacifica **testnet**
+> (`https://test-api.pacifica.fi`). To trade on production, set
+> `PACIFICA_BASE_URL=https://api.pacifica.fi` (see the
+> [environment variables](#environment-variables) below).
+
+#### Claude Desktop
 
 Open Claude Desktop → **Settings → Developer → Edit Config** and add the server
-to `claude_desktop_config.json`. The `npx -y` command downloads and runs the
-latest published version automatically, so there is no manual install step.
+to `claude_desktop_config.json`:
 
 ```json
 {
@@ -36,13 +54,135 @@ latest published version automatically, so there is no manual install step.
 }
 ```
 
-Restart Claude Desktop after saving. On startup the server logs the active account
-and auth mode to stderr (visible in the MCP logs), e.g.
-`[pacifica-mcp] account=<address> mode=agent-key`.
+Restart Claude Desktop after saving.
 
-> **Network:** by default the server targets the Pacifica **testnet**
-> (`https://test-api.pacifica.fi`). To trade on production, set
-> `PACIFICA_BASE_URL=https://api.pacifica.fi` (see the table below).
+#### Claude Code
+
+Add it with the CLI:
+
+```bash
+claude mcp add pacifica \
+  --transport stdio \
+  --env ADDRESS=<your account address> \
+  --env AGENT_PRIVATE_KEY=<your agent wallet secret key> \
+  -- npx -y @pacifica-fi/mcp-server
+```
+
+Or create `.mcp.json` in your project root (commit it to share with your team):
+
+```json
+{
+  "mcpServers": {
+    "pacifica": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@pacifica-fi/mcp-server"],
+      "env": {
+        "ADDRESS": "<your account address>",
+        "AGENT_PRIVATE_KEY": "<your agent wallet secret key>"
+      }
+    }
+  }
+}
+```
+
+Verify with `claude mcp list`. Docs: <https://code.claude.com/docs/en/mcp>
+
+#### OpenAI Codex
+
+Add it with the CLI:
+
+```bash
+codex mcp add pacifica \
+  --env ADDRESS=<your account address> \
+  --env AGENT_PRIVATE_KEY=<your agent wallet secret key> \
+  -- npx -y @pacifica-fi/mcp-server
+```
+
+Or edit `~/.codex/config.toml` (note the nested `.env` table):
+
+```toml
+[mcp_servers.pacifica]
+command = "npx"
+args = ["-y", "@pacifica-fi/mcp-server"]
+
+[mcp_servers.pacifica.env]
+ADDRESS = "<your account address>"
+AGENT_PRIVATE_KEY = "<your agent wallet secret key>"
+```
+
+Docs: <https://developers.openai.com/codex/mcp>
+
+#### Factory (droid)
+
+Add it with the CLI:
+
+```bash
+droid mcp add pacifica "npx -y @pacifica-fi/mcp-server" \
+  --env ADDRESS=<your account address> \
+  --env AGENT_PRIVATE_KEY=<your agent wallet secret key>
+```
+
+Or edit `~/.factory/mcp.json` (user-level) or `.factory/mcp.json` (project-level):
+
+```json
+{
+  "mcpServers": {
+    "pacifica": {
+      "command": "npx",
+      "args": ["-y", "@pacifica-fi/mcp-server"],
+      "env": {
+        "ADDRESS": "<your account address>",
+        "AGENT_PRIVATE_KEY": "<your agent wallet secret key>"
+      }
+    }
+  }
+}
+```
+
+Docs: <https://docs.factory.ai/cli/configuration/mcp>
+
+#### Hermes Agent
+
+Edit `~/.hermes/config.yaml` (YAML, top-level `mcp_servers` key):
+
+```yaml
+mcp_servers:
+  pacifica:
+    command: "npx"
+    args: ["-y", "@pacifica-fi/mcp-server"]
+    env:
+      ADDRESS: "<your account address>"
+      AGENT_PRIVATE_KEY: "<your agent wallet secret key>"
+```
+
+Reload with `/reload-mcp` inside Hermes, or restart it.
+Docs: <https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp>
+
+#### Crush
+
+Edit `crush.json` in your project root (or `~/.config/crush/crush.json` for all projects).
+The top-level key is `mcp` (not `mcpServers`), and Crush expands `$VAR` shell references
+in values — so keep secrets in your environment rather than in the file:
+
+```json
+{
+  "$schema": "https://charm.land/crush.json",
+  "mcp": {
+    "pacifica": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@pacifica-fi/mcp-server"],
+      "env": {
+        "ADDRESS": "$PACIFICA_ADDRESS",
+        "AGENT_PRIVATE_KEY": "$PACIFICA_AGENT_PRIVATE_KEY"
+      }
+    }
+  }
+}
+```
+
+Docs: <https://github.com/charmbracelet/crush>
 
 ## Environment variables
 
@@ -87,142 +227,6 @@ configure the MCP with only your account address and the agent key:
   }
 }
 ```
-
-## Other agents and harnesses
-
-Every MCP client runs the server the same way — the command is `npx -y @pacifica-fi/mcp-server`
-with the environment variables from the [table above](#environment-variables)
-(`ADDRESS` plus `AGENT_PRIVATE_KEY` or `PRIVATE_KEY`; omit the key for read-only).
-Only the config format differs per client. The examples below use agent-key mode;
-swap in `PRIVATE_KEY`, or drop the key entirely for read-only.
-
-### Claude Code
-
-Add it with the CLI:
-
-```bash
-claude mcp add pacifica \
-  --transport stdio \
-  --env ADDRESS=<your account address> \
-  --env AGENT_PRIVATE_KEY=<your agent wallet secret key> \
-  -- npx -y @pacifica-fi/mcp-server
-```
-
-Or create `.mcp.json` in your project root (commit it to share with your team):
-
-```json
-{
-  "mcpServers": {
-    "pacifica": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@pacifica-fi/mcp-server"],
-      "env": {
-        "ADDRESS": "<your account address>",
-        "AGENT_PRIVATE_KEY": "<your agent wallet secret key>"
-      }
-    }
-  }
-}
-```
-
-Verify with `claude mcp list`. Docs: <https://code.claude.com/docs/en/mcp>
-
-### OpenAI Codex
-
-Add it with the CLI:
-
-```bash
-codex mcp add pacifica \
-  --env ADDRESS=<your account address> \
-  --env AGENT_PRIVATE_KEY=<your agent wallet secret key> \
-  -- npx -y @pacifica-fi/mcp-server
-```
-
-Or edit `~/.codex/config.toml` (note the nested `.env` table):
-
-```toml
-[mcp_servers.pacifica]
-command = "npx"
-args = ["-y", "@pacifica-fi/mcp-server"]
-
-[mcp_servers.pacifica.env]
-ADDRESS = "<your account address>"
-AGENT_PRIVATE_KEY = "<your agent wallet secret key>"
-```
-
-Docs: <https://developers.openai.com/codex/mcp>
-
-### Factory (droid)
-
-Add it with the CLI:
-
-```bash
-droid mcp add pacifica "npx -y @pacifica-fi/mcp-server" \
-  --env ADDRESS=<your account address> \
-  --env AGENT_PRIVATE_KEY=<your agent wallet secret key>
-```
-
-Or edit `~/.factory/mcp.json` (user-level) or `.factory/mcp.json` (project-level):
-
-```json
-{
-  "mcpServers": {
-    "pacifica": {
-      "command": "npx",
-      "args": ["-y", "@pacifica-fi/mcp-server"],
-      "env": {
-        "ADDRESS": "<your account address>",
-        "AGENT_PRIVATE_KEY": "<your agent wallet secret key>"
-      }
-    }
-  }
-}
-```
-
-Docs: <https://docs.factory.ai/cli/configuration/mcp>
-
-### Hermes Agent
-
-Edit `~/.hermes/config.yaml` (YAML, top-level `mcp_servers` key):
-
-```yaml
-mcp_servers:
-  pacifica:
-    command: "npx"
-    args: ["-y", "@pacifica-fi/mcp-server"]
-    env:
-      ADDRESS: "<your account address>"
-      AGENT_PRIVATE_KEY: "<your agent wallet secret key>"
-```
-
-Reload with `/reload-mcp` inside Hermes, or restart it.
-Docs: <https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp>
-
-### Crush
-
-Edit `crush.json` in your project root (or `~/.config/crush/crush.json` for all projects).
-The top-level key is `mcp` (not `mcpServers`), and Crush expands `$VAR` shell references
-in values — so keep secrets in your environment rather than in the file:
-
-```json
-{
-  "$schema": "https://charm.land/crush.json",
-  "mcp": {
-    "pacifica": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@pacifica-fi/mcp-server"],
-      "env": {
-        "ADDRESS": "$PACIFICA_ADDRESS",
-        "AGENT_PRIVATE_KEY": "$PACIFICA_AGENT_PRIVATE_KEY"
-      }
-    }
-  }
-}
-```
-
-Docs: <https://github.com/charmbracelet/crush>
 
 ## Security
 
