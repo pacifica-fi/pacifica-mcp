@@ -50,7 +50,8 @@
 		"smoke:3c": "tsx scripts/smoke-3c.ts",
 		"smoke:3d": "tsx scripts/smoke-3d.ts",
 		"smoke:3e": "tsx scripts/smoke-3e.ts",
-		"smoke:agent": "tsx scripts/smoke-agent.ts"
+		"smoke:agent": "tsx scripts/smoke-agent.ts",
+		"smoke:faucet": "tsx scripts/smoke-faucet.ts"
 	},
 	"dependencies": {
 		"@coral-xyz/anchor": "^0.30.1",

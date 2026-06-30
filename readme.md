@@ -240,11 +240,14 @@ npm run dev        # run the server from source (tsx watch)
 npm test           # type-check only (tsc --noEmit)
 npm run gen:keys   # generate 2 fresh keypairs (main + agent)
 npm run smoke:3a   # live testnet smoke tests (read-only; signed suites need creds)
+npm run smoke:faucet  # faucet tests (offline by default; live mint needs creds + flag)
 ```
 
 The `scripts/` directory contains live smoke tests against the Pacifica testnet
 (`npm run smoke:1a`, `smoke:agent`, etc.). Tests that need credentials are skipped
 unless `ADDRESS` / `PRIVATE_KEY` / `AGENT_PRIVATE_KEY` are set in the environment.
+`smoke:faucet` runs offline structural checks by default; its live-mint leg runs
+only with `SMOKE_FAUCET_MINT=1` and `PRIVATE_KEY` set (mints test USDP on devnet).
 
 ## License
 

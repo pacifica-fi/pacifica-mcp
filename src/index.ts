@@ -5,7 +5,7 @@ import { registerMarketTools } from './tools/markets.js';
 import { registerAccountTools } from './tools/account.js';
 import { registerOrderTools } from './tools/orders.js';
 import { registerSpotTools } from './tools/spot.js';
-import { registerFaucetTools } from './tools/faucet.js';
+import { registerFaucetTools, isFaucetEnabled } from './tools/faucet.js';
 import { BASE_URL, address, privateKey, agentPrivateKey, agentWallet } from './helpers.js';
 
 // Create an MCP server
@@ -19,7 +19,7 @@ registerAccountTools(server);
 registerOrderTools(server);
 registerSpotTools(server);
 
-if (BASE_URL.includes('test-api.pacifica.fi')) {
+if (isFaucetEnabled(BASE_URL)) {
   registerFaucetTools(server);
 }
 
