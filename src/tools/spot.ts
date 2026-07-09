@@ -2,7 +2,7 @@
 // Created in Phase 2 of Tier 3 expansion; deferred from Phase 1 (OE-001).
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { makeRequest, signRequest, address, ApiResponse } from '../helpers.js';
+import { makeRequest, address, ApiResponse } from '../helpers.js';
 
 export function registerSpotTools(server: McpServer): void {
   // Get Spot Assets
@@ -72,19 +72,5 @@ export function registerSpotTools(server: McpServer): void {
     },
     async ({ symbol, limit, cursor }) =>
       makeRequest('GET', '/api/v1/account/spot_balance/history', { account: address, symbol, limit, cursor })
-  );
-
-  // Withdraw Spot Asset
-  server.tool('withdrawSpotAsset',
-    "Queues a spot asset withdrawal to the wallet's external address (on-chain transfer, not reversible). Example: { \"symbol\": \"SOL\", \"amount\": \"1.5\" } or { \"symbol\": \"SOL\", \"amount\": \"1.5\", \"idempotency_key\": \"uuid-here\" } to deduplicate. Returns { \"symbol\", \"batch_nonce\", \"requested_amount\", \"fee_amount\" }. The withdrawal is queued -- check getPendingSpotWithdrawals to verify it is pending. NOTE: a spot withdrawal is an on-chain transfer and cannot be reversed by the API.",
-    {
-      symbol: z.string().describe("Spot asset symbol to withdraw, e.g., SOL, BTC, ETH"),
-      amount: z.string().describe("Amount to withdraw as a decimal string, e.g. '1.5'"),
-      idempotency_key: z.string().uuid().optional().describe("Optional UUID to deduplicate the request")
-    },
-    async ({ symbol, amount, idempotency_key }) => {
-      const body = signRequest('withdraw_spot_asset', { symbol, amount, idempotency_key });
-      return makeRequest('POST', '/api/v1/account/spot_asset/withdraw', body);
-    }
   );
 }

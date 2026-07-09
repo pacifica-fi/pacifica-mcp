@@ -19,8 +19,8 @@
  *   LAYER 1  live mint             (gated: SMOKE_FAUCET_MINT=1 + PRIVATE_KEY)
  *     Case E  real mint            mints on devnet and asserts the wallet's USDP
  *                                  token balance increases by ~amount. SKIPPED by
- *                                  default (mirrors the SMOKE_WITHDRAW=1 gate in
- *                                  scripts/smoke-1a.ts).
+ *                                  default (mirrors the SMOKE_CREATE=1 gate in
+ *                                  scripts/smoke-1c.ts).
  *
  * Note: mintUsdp mints to the wallet's USDP token account only -- it does NOT
  * deposit into the exchange account (that is scripts/fund-account.ts's extra

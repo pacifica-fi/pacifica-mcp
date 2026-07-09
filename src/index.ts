@@ -12,7 +12,7 @@ import { BASE_URL, address, privateKey, agentPrivateKey, agentWallet } from './h
 // Create an MCP server
 const server = new McpServer({
   name: 'Pacifica Exchange API',
-  version: '0.0.1'
+  version: '0.2.0'
 });
 
 registerMarketTools(server);

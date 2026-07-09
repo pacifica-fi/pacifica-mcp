@@ -195,7 +195,7 @@ const caseB = async (): Promise<boolean | 'SKIP'> => {
 //      fails, cancelAllOrders (which cancels stop orders too; perp-backend
 //      position/src/state_manager/order.rs:980-988) is invoked as a backstop, and a
 //      final GET /api/v1/orders confirms nothing is left resting.
-//  GATED behind SMOKE_CREATE=1 (mirrors smoke:1c / SMOKE_WITHDRAW). SKIPPED unless
+//  GATED behind SMOKE_CREATE=1 (mirrors smoke:1c). SKIPPED unless
 //  SMOKE_CREATE=1 is explicitly set.
 //  ================================================
 const caseC = async (): Promise<boolean | 'SKIP'> => {

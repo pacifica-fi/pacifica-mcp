@@ -14,7 +14,7 @@
  *
  * Cases A and B need PRIVATE_KEY + ADDRESS and are SKIPPED (not failed) if they
  * are absent. Case C needs PRIVATE_KEY + ADDRESS AND is additionally GATED behind
- * SMOKE_CREATE=1 (mirrors SMOKE_WITHDRAW). Cases A and B are non-executing by
+ * SMOKE_CREATE=1. Cases A and B are non-executing by
  * construction: they only ever send amount "0", which is business-rejected before
  * any order rests. Case C is executing but reversible: it derives a price ~1%
  * below the live mark (below the best ask, so it rests without filling, yet inside
@@ -131,7 +131,7 @@ const caseB = async (): Promise<boolean | 'SKIP'> => {
 //    - Backstop: if the id-based cancel fails, cancelAllOrders
 //      (/api/v1/orders/cancel_all) can clear it; the operator should verify no
 //      resting order remains after the run (see Phase 3).
-//  GATED behind SMOKE_CREATE=1 (mirrors SMOKE_WITHDRAW). The operator should review
+//  GATED behind SMOKE_CREATE=1. The operator should review
 //  this block before enabling it. SKIPPED unless SMOKE_CREATE=1 is explicitly set.
 //  ================================================
 const caseC = async (): Promise<boolean | 'SKIP'> => {
