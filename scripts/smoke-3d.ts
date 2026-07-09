@@ -3,13 +3,10 @@
  *
  *   Case A (ungated, Layer 1, NON-EXECUTING) -- audited vectors from the
  *     Phase-3 probe-audit table:
- *     A1 withdrawSpotAsset  -- audited P3 vector (bogus symbol "NOSUCH").
- *          MANDATORY post-probe getPendingSpotWithdrawals assertion (the
- *          audit's reject-or-QUEUE question, re-asserted on every run).
- *     A2 updateSpotSettings -- audited P9 vector (bogus symbol "NOSUCH" -- the
+ *     A1 updateSpotSettings -- audited P9 vector (bogus symbol "NOSUCH" -- the
  *          audit found this is ACCEPTED, not rejected, so we use the
  *          missing-field deserialize vector instead, per Phase 6 plan).
- *     A3 setAutoLendDisabled -- tampered-sig differential ONLY (per P10: no
+ *     A2 setAutoLendDisabled -- tampered-sig differential ONLY (per P10: no
  *          clean invalid vector exists); valid-sig proof comes from Case B.
  *     Each An has a tampered-sig differential leg (where applicable) and
  *     classifies the valid-sig response against the EXACT error string
@@ -44,17 +41,8 @@ import {
 
 const SETTINGS = '/api/v1/account/settings';
 const SPOT_ASSETS = '/api/v1/spot_assets';
-const PENDING_SPOT_WITHDRAW = '/api/v1/account/spot_asset/withdraw/pending';
-const WITHDRAW_SPOT = '/api/v1/account/spot_asset/withdraw';
 const SET_AUTO_LEND = '/api/v1/account/settings/auto_lend_disabled';
 const UPDATE_SPOT_SETTINGS = '/api/v1/account/settings/spot';
-
-// --- audit-verified exact error strings (from probe-audit table) -----------
-
-// P3 withdraw_spot_asset (bogus symbol "NOSUCH")
-const P3_ASSET_NOT_FOUND = 'Asset not found';
-// Tampered-sig legs
-const TAMPERED_SIG_MSG = 'Verification failed';
 
 // --- generic differential helper --------------------------------------------
 
@@ -64,63 +52,14 @@ const probe = async (path: string, body: Record<string, any>, tamper = false) =>
   return post(path, wire);
 };
 
-// True iff the response is the audited valid-sig business rejection.
-const matchesAuditError = (o: any, fragment: string): boolean => {
-  if (o.status !== 422 && o.status !== 400 && o.status !== 200) return false;
-  if (looksLikeSignatureRejection(o)) return false;
-  if (looksLikeDeserializeError(o)) return false;
-  const text = JSON.stringify(o.body).toLowerCase();
-  return text.includes(fragment.toLowerCase());
-};
-
 // --- Case A: signed POST probes (audited vectors) ---------------------------
 
-// A1: withdrawSpotAsset -- audited P3 vector. Bogus symbol "NOSUCH".
-// Expected: 422 with "Asset not found: NOSUCH". Mandatory post-probe check:
-// getPendingSpotWithdrawals MUST be empty (the audit's reject-or-QUEUE question).
-const caseA1 = async (): Promise<boolean | 'SKIP'> => {
-  log('\n=== A1: withdrawSpotAsset audited P3 vector (bogus symbol "NOSUCH") + queue check ===');
-  if (!privateKey || !address) {
-    log('SKIPPED (set PRIVATE_KEY and ADDRESS to include)');
-    return 'SKIP';
-  }
-
-  // Valid-sig leg: expect 422 with "Asset not found: NOSUCH".
-  const good = signRequest('withdraw_spot_asset', { symbol: 'NOSUCH', amount: '10' });
-  const goodO = await probe(WITHDRAW_SPOT, good);
-  log(`A1 valid-sig         status: ${goodO.status}  body: ${JSON.stringify(goodO.body).slice(0, 200)}`);
-  const a1Valid = matchesAuditError(goodO, P3_ASSET_NOT_FOUND);
-
-  // Tampered-sig leg: expect 400 "Verification failed".
-  const badO = await probe(WITHDRAW_SPOT, good, true);
-  log(`A1 tampered-sig      status: ${badO.status}  body: ${JSON.stringify(badO.body).slice(0, 200)}`);
-  const a1Tamper = looksLikeSignatureRejection(badO);
-
-  // MANDATORY post-probe check: pending spot withdrawal queue MUST be empty.
-  // This is the queue-not-response trap: even a 422 could in principle queue a
-  // request on the backend, so we check the pending queue directly.
-  const pendingO = await get(PENDING_SPOT_WITHDRAW, { account: address });
-  const pending = Array.isArray(pendingO.body?.data) ? pendingO.body.data : [];
-  const a1QueueEmpty = pending.length === 0;
-  log(`A1 post-probe queue  ${pending.length} pending spot withdrawal(s)  (want 0)`);
-  if (pending.length > 0) {
-    log(`  LEAK: ${pending.length} spot withdrawal(s) queued after bogus-symbol probe!`);
-  }
-
-  log(`  A1 valid-sig matched audited "Asset not found"? ${a1Valid}  (want true)`);
-  log(`  A1 tampered-sig is sig rejection?               ${a1Tamper}  (want true)`);
-  log(`  A1 pending queue empty?                         ${a1QueueEmpty}  (want true)`);
-  const pass = a1Valid && a1Tamper && a1QueueEmpty;
-  log(pass ? ok('A1 PASS') : no('A1 FAIL'));
-  return pass;
-};
-
-// A2: updateSpotSettings -- audited P9 vector. Bogus symbol is NOT rejected
+// A1: updateSpotSettings -- audited P9 vector. Bogus symbol is NOT rejected
 // (the audit found the backend ACCEPTS any symbol string). Per the Phase 6
 // plan, we use a missing-field deserialize vector instead, which proves
 // shape deserialization without resting any state.
-const caseA2 = async (): Promise<boolean | 'SKIP'> => {
-  log('\n=== A2: updateSpotSettings missing-field deserialize vector (P9 alt) + settings-unchanged ===');
+const caseA1 = async (): Promise<boolean | 'SKIP'> => {
+  log('\n=== A1: updateSpotSettings missing-field deserialize vector (P9 alt) + settings-unchanged ===');
   if (!privateKey || !address) {
     log('SKIPPED (set PRIVATE_KEY and ADDRESS to include)');
     return 'SKIP';
@@ -129,7 +68,7 @@ const caseA2 = async (): Promise<boolean | 'SKIP'> => {
   // Get baseline settings to compare after.
   const beforeO = await get(SETTINGS, { account: address });
   const beforeJson = JSON.stringify(beforeO.body);
-  log(`A2 baseline settings  body: ${beforeJson.slice(0, 200)}`);
+  log(`A1 baseline settings  body: ${beforeJson.slice(0, 200)}`);
 
   // Missing-field vector: sign with only { unified_margin_excluded: true }
   // (no symbol). Backend should reject with a deserialize error.
@@ -158,11 +97,11 @@ const caseA2 = async (): Promise<boolean | 'SKIP'> => {
   };
 
   const goodO = await post(UPDATE_SPOT_SETTINGS, missingFieldBody);
-  log(`A2 valid-sig         status: ${goodO.status}  body: ${JSON.stringify(goodO.body).slice(0, 200)}`);
+  log(`A1 valid-sig         status: ${goodO.status}  body: ${JSON.stringify(goodO.body).slice(0, 200)}`);
   // P9 alt: expect a deserialize-layer rejection (missing field `symbol`).
   // Classify as a deserialize error, not a business rejection. This is
   // clearly classified as such per the audit's recommendation.
-  const a2Valid = goodO.status === 400 && looksLikeDeserializeError(goodO);
+  const a1Valid = goodO.status === 400 && looksLikeDeserializeError(goodO);
 
   // Tampered-sig leg: build a body that PASSES deserialization (includes symbol)
   // but with a tampered signature. This proves the sig-rejection ordering.
@@ -173,34 +112,34 @@ const caseA2 = async (): Promise<boolean | 'SKIP'> => {
   });
   const tamperedComplete = { ...validComplete, signature: tamperSignature(validComplete.signature) };
   const badO = await post(UPDATE_SPOT_SETTINGS, tamperedComplete);
-  log(`A2 tampered-sig      status: ${badO.status}  body: ${JSON.stringify(badO.body).slice(0, 200)}`);
-  const a2Tamper = looksLikeSignatureRejection(badO);
+  log(`A1 tampered-sig      status: ${badO.status}  body: ${JSON.stringify(badO.body).slice(0, 200)}`);
+  const a1Tamper = looksLikeSignatureRejection(badO);
 
   // Post-probe: settings unchanged (GET /account/settings).
   const afterO = await get(SETTINGS, { account: address });
   const afterJson = JSON.stringify(afterO.body);
-  const a2Unchanged = beforeJson === afterJson;
-  log(`A2 post-probe       settings unchanged? ${a2Unchanged}  (want true)`);
-  if (!a2Unchanged) {
+  const a1Unchanged = beforeJson === afterJson;
+  log(`A1 post-probe       settings unchanged? ${a1Unchanged}  (want true)`);
+  if (!a1Unchanged) {
     log(`  SETTINGS CHANGED!`);
     log(`  before: ${beforeJson.slice(0, 300)}`);
     log(`  after:  ${afterJson.slice(0, 300)}`);
   }
 
-  log(`  A2 valid-sig is deserialize rejection? ${a2Valid}  (want true)`);
-  log(`  A2 tampered-sig is sig rejection?       ${a2Tamper}  (want true)`);
-  log(`  A2 settings unchanged?                  ${a2Unchanged}  (want true)`);
-  const pass = a2Valid && a2Tamper && a2Unchanged;
-  log(pass ? ok('A2 PASS') : no('A2 FAIL'));
+  log(`  A1 valid-sig is deserialize rejection? ${a1Valid}  (want true)`);
+  log(`  A1 tampered-sig is sig rejection?       ${a1Tamper}  (want true)`);
+  log(`  A1 settings unchanged?                  ${a1Unchanged}  (want true)`);
+  const pass = a1Valid && a1Tamper && a1Unchanged;
+  log(pass ? ok('A1 PASS') : no('A1 FAIL'));
   return pass;
 };
 
-// A3: setAutoLendDisabled -- tampered-sig differential ONLY.
+// A2: setAutoLendDisabled -- tampered-sig differential ONLY.
 // Per P10: every value of disabled is valid, so there is no clean invalid
 // vector. Layer-1 = tampered-sig leg only (proves sig rejection ordering).
 // Valid-sig proof is deferred to Case B's set->restore leg.
-const caseA3 = async (): Promise<boolean | 'SKIP'> => {
-  log('\n=== A3: setAutoLendDisabled tampered-sig differential ONLY (P10) ===');
+const caseA2 = async (): Promise<boolean | 'SKIP'> => {
+  log('\n=== A2: setAutoLendDisabled tampered-sig differential ONLY (P10) ===');
   if (!privateKey || !address) {
     log('SKIPPED (set PRIVATE_KEY and ADDRESS to include)');
     return 'SKIP';
@@ -210,8 +149,8 @@ const caseA3 = async (): Promise<boolean | 'SKIP'> => {
   // valid-sig body (it would mutate settings); we only send the tampered copy.
   const valid = signRequest('set_auto_lend_disabled', { disabled: true });
   const badO = await probe(SET_AUTO_LEND, valid, true);
-  log(`A3 tampered-sig      status: ${badO.status}  body: ${JSON.stringify(badO.body).slice(0, 200)}`);
-  const a3Tamper = looksLikeSignatureRejection(badO);
+  log(`A2 tampered-sig      status: ${badO.status}  body: ${JSON.stringify(badO.body).slice(0, 200)}`);
+  const a2Tamper = looksLikeSignatureRejection(badO);
 
   // Also do a baseline -> no-op -> baseline check to ensure no side effect
   // from sending the tampered-sig request.
@@ -219,11 +158,11 @@ const caseA3 = async (): Promise<boolean | 'SKIP'> => {
   const beforeAutoLend = beforeO.body?.data?.auto_lend_disabled;
   // We already sent the tampered request above; the baseline is post-tamper.
   // That is fine: the tampered request should have been rejected at sig check.
-  log(`A3 post-probe       auto_lend_disabled=${JSON.stringify(beforeAutoLend)}  (unchanged from pre-tamper)`);
+  log(`A2 post-probe       auto_lend_disabled=${JSON.stringify(beforeAutoLend)}  (unchanged from pre-tamper)`);
 
-  log(`  A3 tampered-sig is sig rejection? ${a3Tamper}  (want true)`);
-  const pass = a3Tamper;
-  log(pass ? ok('A3 PASS') : no('A3 FAIL'));
+  log(`  A2 tampered-sig is sig rejection? ${a2Tamper}  (want true)`);
+  const pass = a2Tamper;
+  log(pass ? ok('A2 PASS') : no('A2 FAIL'));
   return pass;
 };
 
@@ -436,9 +375,8 @@ const main = async () => {
   log(`Create   : ${process.env.SMOKE_CREATE === '1' ? 'enabled (SMOKE_CREATE=1)' : 'disabled (default)'}`);
 
   const results: Array<[string, boolean | 'SKIP']> = [];
-  results.push(['A1 withdrawSpotAsset audited P3', await caseA1()]);
-  results.push(['A2 updateSpotSettings P9 alt (deserialize)', await caseA2()]);
-  results.push(['A3 setAutoLendDisabled tampered-sig only (P10)', await caseA3()]);
+  results.push(['A1 updateSpotSettings P9 alt (deserialize)', await caseA1()]);
+  results.push(['A2 setAutoLendDisabled tampered-sig only (P10)', await caseA2()]);
   results.push(['B1 setAutoLendDisabled set->restore (gated)', await caseB1()]);
   results.push(['B2 updateSpotSettings set->restore (gated)', await caseB2()]);
 

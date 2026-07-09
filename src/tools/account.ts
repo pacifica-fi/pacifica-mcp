@@ -45,18 +45,6 @@ export function registerAccountTools(server: McpServer): void {
     async (): Promise<ApiResponse> => makeRequest('GET', '/api/v1/account/settings', { account: address })
   );
 
-  // Withdraw
-  server.tool('withdraw',
-    "Withdraws funds from the perp account. Submit a signed request with the amount as a decimal string. Example: { \"amount\": \"100.50\" }. Returns { \"success\": true } on success.",
-    {
-      amount: z.string().describe("Amount of funds to withdraw, as a decimal string, e.g. \"100.50\"")
-    },
-    async ({ amount }) => {
-      const body = signRequest('withdraw', { amount });
-      return makeRequest('POST', '/api/v1/account/withdraw', body);
-    }
-  );
-
   // Bind Agent Wallet
   server.tool('bindAgentWallet',
     "Binds an agent wallet to the account via the legacy direct-bind endpoint (POST /api/v1/agent/bind). NOTE: the current recommended flow is to generate an agent (API) key on the Pacifica frontend or via the Python SDK and pass it as `agent_wallet` in the request header on each signed request, rather than binding here. Example: { \"agent_wallet\": \"AgentWalletPubkey...\" }. Returns { \"success\": true } on success.",
