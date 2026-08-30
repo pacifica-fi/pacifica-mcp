@@ -1,6 +1,25 @@
-# This workflow will run a type-check build and then publish the package to npm
-# when a GitHub release is created.
-# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+# Publishes the package to npm when a GitHub release is created.
+# See https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+#
+# Hardening notes for this workflow:
+#
+#  - `permissions:` is declared explicitly. Without it the job inherits the repository
+#    default, which for many repositories is still write-all: any dependency's install
+#    script, or a compromised action, would then be running with a token that can push
+#    commits and edit releases. Each job below gets only what it needs.
+#  - `npm publish --provenance` has npm sign a provenance attestation tying the published
+#    tarball to this workflow run and commit. That is what lets a consumer verify the
+#    package was built here rather than uploaded from someone's laptop. It requires the
+#    `id-token: write` permission on the publishing job, and nothing more.
+#  - The actions below are referenced by tag, not by commit SHA. A tag is mutable: whoever
+#    controls the action's repository can move `v4` to different code, and it will run here
+#    with access to NODE_AUTH_TOKEN. Pinning to a full 40-character commit SHA removes
+#    that. The SHAs are deliberately not filled in here, because the audit that added this
+#    comment had no network access to look up the current ones and a guessed SHA would
+#    either break the workflow or pin the wrong code. To pin them:
+#       gh api repos/actions/checkout/git/ref/tags/v4.2.2 --jq .object.sha
+#       gh api repos/actions/setup-node/git/ref/tags/v4.1.0 --jq .object.sha
+#    then write `actions/checkout@<sha> # v4.2.2`.
 
 name: Node.js Package
 
@@ -8,9 +27,15 @@ on:
   release:
     types: [created]
 
+# Read-only by default; the publishing job widens it to exactly what provenance needs.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,6 +47,11 @@ jobs:
   publish-npm:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required for `npm publish --provenance` to mint the signing token. It does not
+      # grant write access to the repository.
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,6 +59,6 @@ jobs:
           node-version: 20
           registry-url: https://registry.npmjs.org/
       - run: npm ci
-      - run: npm publish
+      - run: npm publish --provenance
         env:
-          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+          NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
