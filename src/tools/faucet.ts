@@ -1,18 +1,18 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { privateKey, SOLANA_RPC_URL, type ApiResponse } from '../helpers.js';
 import {
   BN,
-  USDC_DECIMALS,
   TESTNET_USDC_MINT,
   ata,
   idlProgramId,
   makeProgram,
   sendInstruction,
+  toBaseUnits,
 } from './onchain.js';
+import { amountString, DRY_RUN, dryRunResult } from '../limits.js';
 
 // Re-exported for stability: the shared module owns IDL loading now.
 export { loadIdl as loadFaucetIdl } from './onchain.js';
@@ -41,14 +41,17 @@ export interface BuiltMintIx {
 
 // Build (but do NOT send) the mint_test_usdc instruction. Network-free: only
 // derives accounts and encodes the instruction, so it can be exercised offline
-// by the smoke tests. `amount` is in whole USDP and is scaled to base units;
-// Math.round guards fractional amounts (the tool's zod schema allows them)
-// against BN's integer assertion.
+// by the smoke tests.
+//
+// `amount` is a decimal string in whole USDP, converted to base units by `toBaseUnits`.
+// It was a `number` scaled with `Math.round(amount * USDC_DECIMALS)`; these are test
+// tokens, so the stakes are lower than in deposit.ts, but the same conversion is used so
+// that the faucet and the deposit path cannot disagree about what an amount means.
 export async function buildMintTestUsdcIx(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   program: any,
   owner: PublicKey,
-  amount: number,
+  amount: string,
 ): Promise<BuiltMintIx> {
   const [userAccount] = PublicKey.findProgramAddressSync(
     [anchor.utils.bytes.utf8.encode(USER_ACCOUNT_SEED), owner.toBuffer()],
@@ -58,7 +61,7 @@ export async function buildMintTestUsdcIx(
   const userUsdcATA = ata(new PublicKey(USDP_MINT), owner);
 
   const instruction = await program.methods
-    .mintTestUsdc(new BN(Math.round(amount * USDC_DECIMALS)))
+    .mintTestUsdc(new BN(toBaseUnits(amount).toString()))
     .accounts({
       user: owner,
       userAccount,
@@ -80,7 +83,7 @@ export async function buildMintTestUsdcIx(
 export async function mintTestUsdp(opts: {
   privateKey: string | undefined;
   rpcUrl: string;
-  amount: number;
+  amount: string;
 }): Promise<ApiResponse> {
   if (!opts.privateKey) {
     return {
@@ -88,7 +91,18 @@ export async function mintTestUsdp(opts: {
         type: 'text',
         text: 'Error: PRIVATE_KEY is required to mint USDP — agent keys are for API signing only.',
       }],
+      // Marked as an error so a missing key is not reported to the model as a
+      // successful mint whose text happens to start with "Error".
+      isError: true,
     };
+  }
+
+  if (DRY_RUN) {
+    return dryRunResult('mint_test_usdc', {
+      amount: opts.amount,
+      base_units: toBaseUnits(opts.amount).toString(),
+      mint: USDP_MINT,
+    });
   }
 
   const { program, keypair, provider } =
@@ -107,10 +121,11 @@ export async function mintTestUsdp(opts: {
 export function registerFaucetTools(server: McpServer): void {
   server.tool(
     'mintUsdp',
-    'Mint test USDP to the configured wallet (testnet only). Requires PRIVATE_KEY. Default amount is 10,000 USDP.',
+    'Mint test USDP to the configured wallet (testnet only). Requires PRIVATE_KEY. The amount is a '
+    + 'decimal string with at most 6 decimal places; the default is 10,000 USDP.',
     {
-      amount: z.number().positive().default(10000)
-        .describe('Amount of USDP to mint (default: 10,000)'),
+      amount: amountString.default('10000')
+        .describe("Amount of USDP to mint as a decimal string (default: '10000')"),
     },
     async ({ amount }): Promise<ApiResponse> =>
       mintTestUsdp({ privateKey, rpcUrl: SOLANA_RPC_URL, amount }),

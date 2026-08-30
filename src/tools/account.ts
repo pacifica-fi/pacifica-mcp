@@ -2,7 +2,8 @@
 // Moved verbatim from src/index.ts in the Tier 3 restructure; behavior unchanged.
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { makeRequest, signRequest, address, ApiResponse } from '../helpers.js';
+import { makeRequest, submitSigned, address, ApiResponse } from '../helpers.js';
+import { leverageValue, MAX_LEVERAGE, MIN_LEVERAGE } from '../limits.js';
 
 export function registerAccountTools(server: McpServer): void {
   // Get Account Info
@@ -17,11 +18,16 @@ export function registerAccountTools(server: McpServer): void {
     "Updates the leverage multiplier for a specific trading pair (e.g. BTC, ETH). Each pair has a maximum leverage limit. Example: { \"symbol\": \"BTC\", \"leverage\": 10 } sets BTC to 10x. Returns { \"success\": true } on success, or { \"error\": \"Invalid leverage\", \"code\": 400 } on failure.",
     {
       symbol: z.string().describe("Trading pair symbol, e.g., BTC, ETH, etc."),
-      leverage: z.number().describe("Leverage multiplier to set, must be within the maximum leverage allowed for the trading pair")
+      // Bounded to Pacifica's supported range (see src/limits.ts). `z.number()` accepted
+      // 0, a negative, a fraction and 5000 alike, and this endpoint changes the
+      // liquidation distance of every position on the symbol with no confirmation step:
+      // a value meant for another venue's scale, or one extra digit, is not something to
+      // discover from the exchange's rejection text.
+      leverage: leverageValue
+        .describe(`Leverage multiplier to set, an integer from ${MIN_LEVERAGE} to ${MAX_LEVERAGE} and within the maximum allowed for the trading pair`)
     },
     async ({ symbol, leverage }) => {
-      const body = signRequest('update_leverage', { symbol, leverage });
-      return makeRequest('POST', '/api/v1/account/leverage', body);
+      return submitSigned('update_leverage', '/api/v1/account/leverage', { symbol, leverage });
     }
   );
 
@@ -33,8 +39,7 @@ export function registerAccountTools(server: McpServer): void {
       is_isolated: z.boolean().describe("true for isolated margin mode, false for cross margin mode")
     },
     async ({ symbol, is_isolated }) => {
-      const body = signRequest('update_margin_mode', { symbol, is_isolated });
-      return makeRequest('POST', '/api/v1/account/margin', body);
+      return submitSigned('update_margin_mode', '/api/v1/account/margin', { symbol, is_isolated });
     }
   );
 
@@ -52,8 +57,7 @@ export function registerAccountTools(server: McpServer): void {
       agent_wallet: z.string().describe("Agent wallet address to bind to the account")
     },
     async ({ agent_wallet }) => {
-      const body = signRequest('bind_agent_wallet', { agent_wallet });
-      return makeRequest('POST', '/api/v1/agent/bind', body);
+      return submitSigned('bind_agent_wallet', '/api/v1/agent/bind', { agent_wallet });
     }
   );
 
@@ -164,8 +168,7 @@ export function registerAccountTools(server: McpServer): void {
       disabled: z.boolean().optional().describe("true to disable auto-lending, false to enable, OMIT to clear back to default")
     },
     async ({ disabled }) => {
-      const body = signRequest('set_auto_lend_disabled', { disabled });
-      return makeRequest('POST', '/api/v1/account/settings/auto_lend_disabled', body);
+      return submitSigned('set_auto_lend_disabled', '/api/v1/account/settings/auto_lend_disabled', { disabled });
     }
   );
 
@@ -177,8 +180,7 @@ export function registerAccountTools(server: McpServer): void {
       unified_margin_excluded: z.boolean().describe("true to exclude the asset from unified margin collateral, false to include it")
     },
     async ({ symbol, unified_margin_excluded }) => {
-      const body = signRequest('update_account_spot_settings', { symbol, unified_margin_excluded });
-      return makeRequest('POST', '/api/v1/account/settings/spot', body);
+      return submitSigned('update_account_spot_settings', '/api/v1/account/settings/spot', { symbol, unified_margin_excluded });
     }
   );
 }

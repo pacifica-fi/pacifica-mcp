@@ -2,17 +2,32 @@
 // Moved verbatim from src/index.ts in the Tier 3 restructure; behavior unchanged.
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { makeRequest, signRequest, address, ApiResponse } from '../helpers.js';
+import { makeRequest, signRequest, submitSigned, address, ApiResponse } from '../helpers.js';
+import {
+  amountString,
+  builderCode,
+  checkCeiling,
+  DRY_RUN,
+  dryRunResult,
+  MAX_ORDER_AMOUNT,
+  percentString,
+  priceString,
+  refuse,
+} from '../limits.js';
 
 // Nested StopOrderInfo config shared by openOrder's take_profit / stop_loss
 // fields and createStopOrder's stop_order field. Mirrors the backend
 // StopOrderInfo struct (perp-backend api/src/client/types/mod.rs:36-57): the REST
 // inputs are decimal-string prices; the server derives stop_tick_level /
 // limit_tick_level from them via book.get_tick().
+//
+// The three numeric fields were `z.string()`, which documented "decimal string"
+// without requiring one: `"1e5"`, `"-1"`, `""` and `"abc"` all passed and were signed
+// into the payload. They now use the shared strict decimal schema from src/limits.ts.
 export const stopOrderInfoSchema = z.object({
-  stop_price: z.string().describe("Trigger price as a decimal string, e.g. '64000.5'"),
-  limit_price: z.string().optional().describe("Optional limit price (decimal string); omit for a market-style stop"),
-  amount: z.string().optional().describe("Optional amount (decimal string); defaults to the parent order / full position size"),
+  stop_price: priceString.describe("Trigger price as a decimal string, e.g. '64000.5'"),
+  limit_price: priceString.optional().describe("Optional limit price (decimal string); omit for a market-style stop"),
+  amount: amountString.optional().describe("Optional amount (decimal string); defaults to the parent order / full position size"),
   client_order_id: z.string().uuid().optional().describe("Optional client-supplied UUID for this stop leg"),
   trigger_price_type: z.enum(['mark_price', 'last_trade_price', 'mid_price']).optional()
     .describe("Which price triggers the stop. CAUTION: despite backend docs claiming mark_price, omitting this empirically defaults to mid_price (the API forwards None and the engine treats None as book mid) — on an empty book mid is 0, which makes any stop-loss invalid; pass 'mark_price' explicitly"),
@@ -33,22 +48,28 @@ export function registerOrderTools(server: McpServer): void {
     "Creates a new limit order, optionally with an attached take-profit and/or stop-loss. Price and amount are decimal strings. Example: { \"symbol\": \"BTC\", \"price\": \"65000.5\", \"amount\": \"0.001\", \"side\": \"bid\", \"tif\": \"GTC\", \"reduce_only\": false }. Returns { \"order_id\": 12345 } on success, or { \"error\": \"Invalid order parameters\", \"code\": 400 } on failure. Note: GTC and IOC orders are subject to a ~200ms delay to protect liquidity providers.",
     {
       symbol: z.string().describe("Trading pair symbol, e.g., BTC, ETH, etc."),
-      price: z.string().describe("Order price as a decimal string (preserves precision), e.g. '65000.5'"),
-      amount: z.string().describe("Order quantity as a decimal string (preserves precision), e.g. '0.001'"),
+      price: priceString.describe("Order price as a decimal string (preserves precision), e.g. '65000.5'"),
+      amount: amountString.describe("Order quantity as a decimal string (preserves precision), e.g. '0.001'"),
       side: z.enum(['bid', 'ask']).describe("Order direction: 'bid' (buy) or 'ask' (sell)"),
       tif: z.enum(['GTC', 'IOC', 'ALO', 'TOB', 'RFQ']).describe("Time-in-force: GTC (Good Till Cancel), IOC (Immediate or Cancel), ALO (Add Limit Only / post-only), TOB (Top of Book), RFQ (Request for Quote)"),
       reduce_only: z.boolean().describe("Whether the order may only reduce an existing position"),
       client_order_id: z.string().uuid().optional().describe("Optional client-supplied UUID to track the order"),
       take_profit: stopOrderInfoSchema.optional().describe("Optional take-profit stop order attached to this order"),
       stop_loss: stopOrderInfoSchema.optional().describe("Optional stop-loss stop order attached to this order"),
-      builder_code: z.string().optional().describe("Optional builder code (3-16 alphanumeric characters)"),
+      builder_code: builderCode.optional().describe("Optional builder code (3-16 alphanumeric characters)"),
     },
     async ({ symbol, price, amount, side, tif, reduce_only, client_order_id, take_profit, stop_loss, builder_code }) => {
-      const body = signRequest('create_order', {
+      // The ceiling is checked before signing, not after a rejection: once the payload
+      // is signed and sent the order may already be resting on the book.
+      const tooLarge = checkCeiling(amount, MAX_ORDER_AMOUNT, {
+        label: `Order amount for ${symbol}`,
+        envVar: 'PACIFICA_MAX_ORDER_AMOUNT',
+      });
+      if (tooLarge) return refuse(tooLarge);
+      return submitSigned('create_order', '/api/v1/orders/create', {
         symbol, price, amount, side, tif, reduce_only,
         client_order_id, take_profit, stop_loss, builder_code,
       });
-      return makeRequest('POST', '/api/v1/orders/create', body);
     }
   );
 
@@ -57,11 +78,10 @@ export function registerOrderTools(server: McpServer): void {
     "Cancels a specified unfilled order by symbol and order ID. Example: { \"symbol\": \"BTC\", \"order_id\": 13753364 }. Returns { \"success\": true } on success, or { \"error\": \"Order not found\", \"code\": 400 } on failure.",
     {
       symbol: z.string().describe("Trading pair symbol, e.g., BTC, ETH, etc."),
-      order_id: z.number().describe("ID of the order to cancel")
+      order_id: z.number().int().min(0).describe("ID of the order to cancel")
     },
     async ({ symbol, order_id }) => {
-      const body = signRequest('cancel_order', { symbol, order_id });
-      return makeRequest('POST', '/api/v1/orders/cancel', body);
+      return submitSigned('cancel_order', '/api/v1/orders/cancel', { symbol, order_id });
     }
   );
 
@@ -74,8 +94,9 @@ export function registerOrderTools(server: McpServer): void {
       exclude_reduce_only: z.boolean().describe("Whether to exclude reduce-only orders from cancellation. Required by the API.")
     },
     async ({ symbol, all_symbols, exclude_reduce_only }) => {
-      const body = signRequest('cancel_all_orders', { symbol, all_symbols, exclude_reduce_only });
-      return makeRequest('POST', '/api/v1/orders/cancel_all', body);
+      return submitSigned('cancel_all_orders', '/api/v1/orders/cancel_all', {
+        symbol, all_symbols, exclude_reduce_only,
+      });
     }
   );
 
@@ -84,11 +105,10 @@ export function registerOrderTools(server: McpServer): void {
     "Cancels an existing stop-loss/take-profit order by symbol and order ID. Example: { \"symbol\": \"BTC\", \"order_id\": 12345 }. Returns { \"success\": true } on success, or { \"error\": \"Stop order not found\", \"code\": 400 } on failure.",
     {
       symbol: z.string().describe("Trading pair symbol, e.g., BTC, ETH, etc."),
-      order_id: z.number().describe("ID of the stop loss/take profit order to cancel")
+      order_id: z.number().int().min(0).describe("ID of the stop loss/take profit order to cancel")
     },
     async ({ symbol, order_id }) => {
-      const body = signRequest('cancel_stop_order', { symbol, order_id });
-      return makeRequest('POST', '/api/v1/orders/stop/cancel', body);
+      return submitSigned('cancel_stop_order', '/api/v1/orders/stop/cancel', { symbol, order_id });
     }
   );
 
@@ -98,12 +118,16 @@ export function registerOrderTools(server: McpServer): void {
     {
       symbol: z.string().describe("Trading pair symbol, e.g., BTC, ETH, etc."),
       stop_order: stopOrderInfoSchema.describe("Stop order configuration (StopOrderInfo): stop_price (decimal string, required), optional limit_price/amount (decimal strings), optional client_order_id (UUID) and trigger_price_type"),
-      side: z.string().describe("Order direction: 'bid' (buy) or 'ask' (sell)"),
+      // Every other tool in this file already constrained `side` to the two values the
+      // engine accepts; this one took any string, so a plausible-looking "buy" or "long"
+      // was signed and submitted only to come back as a generic API rejection.
+      side: z.enum(['bid', 'ask']).describe("Order direction: 'bid' (buy) or 'ask' (sell)"),
       reduce_only: z.boolean().describe("Whether to reduce position only; when true, this order can only reduce positions, not increase them")
     },
     async ({ symbol, stop_order, side, reduce_only }) => {
-      const body = signRequest('create_stop_order', { symbol, stop_order, side, reduce_only });
-      return makeRequest('POST', '/api/v1/orders/stop/create', body);
+      return submitSigned('create_stop_order', '/api/v1/orders/stop/create', {
+        symbol, stop_order, side, reduce_only,
+      });
     }
   );
 
@@ -131,21 +155,28 @@ export function registerOrderTools(server: McpServer): void {
     "Creates a market order that executes immediately against the book at up to slippage_percent from the mark price. Amount and slippage_percent are decimal strings. Example: { \"symbol\": \"BTC\", \"amount\": \"0.001\", \"side\": \"bid\", \"slippage_percent\": \"0.5\", \"reduce_only\": false }. Optionally attach take_profit/stop_loss (StopOrderInfo with decimal-string prices). Returns { \"order_id\": 12345 } on success. NOTE: market orders are subject to a ~200ms speed-bump delay to protect liquidity providers. Fails if the book has no liquidity within the slippage band.",
     {
       symbol: z.string().describe("Trading pair symbol, e.g., BTC, ETH, etc."),
-      amount: z.string().describe("Order quantity as a decimal string, e.g. '0.001'"),
+      amount: amountString.describe("Order quantity as a decimal string, e.g. '0.001'"),
       side: z.enum(['bid', 'ask']).describe("Order direction: 'bid' (buy) or 'ask' (sell)"),
-      slippage_percent: z.string().describe("Max slippage from mark as a decimal-string percentage, e.g. '0.5' for 0.5%"),
+      // Bounded at 100 by `percentString`. An unbounded slippage tolerance on a market
+      // order is an instruction to fill at any price the book offers, which is the most
+      // expensive thing a single mistyped argument here can do.
+      slippage_percent: percentString.describe("Max slippage from mark as a decimal-string percentage, e.g. '0.5' for 0.5%"),
       reduce_only: z.boolean().describe("Whether the order may only reduce an existing position"),
       client_order_id: z.string().uuid().optional().describe("Optional client-supplied UUID to track the order"),
       take_profit: stopOrderInfoSchema.optional().describe("Optional take-profit stop order attached to this order"),
       stop_loss: stopOrderInfoSchema.optional().describe("Optional stop-loss stop order attached to this order"),
-      builder_code: z.string().optional().describe("Optional builder code (3-16 alphanumeric characters)"),
+      builder_code: builderCode.optional().describe("Optional builder code (3-16 alphanumeric characters)"),
     },
     async ({ symbol, amount, side, slippage_percent, reduce_only, client_order_id, take_profit, stop_loss, builder_code }) => {
-      const body = signRequest('create_market_order', {
+      const tooLarge = checkCeiling(amount, MAX_ORDER_AMOUNT, {
+        label: `Market order amount for ${symbol}`,
+        envVar: 'PACIFICA_MAX_ORDER_AMOUNT',
+      });
+      if (tooLarge) return refuse(tooLarge);
+      return submitSigned('create_market_order', '/api/v1/orders/create_market', {
         symbol, amount, side, slippage_percent, reduce_only,
         client_order_id, take_profit, stop_loss, builder_code,
       });
-      return makeRequest('POST', '/api/v1/orders/create_market', body);
     }
   );
 
@@ -154,13 +185,21 @@ export function registerOrderTools(server: McpServer): void {
     "Edits an existing limit order (cancels the original and creates a new order with TIF=ALO/post-only). Price and amount are decimal strings. Example: { \"symbol\": \"BTC\", \"order_id\": 13753364, \"price\": \"65100\", \"amount\": \"0.002\" }. Omit amount to keep the current size. Returns { \"order_id\": 13754000 } with the NEW order_id (the original is cancelled as part of the edit). NOTE: only order_id locator is supported; client_order_id edit is not exposed (matches the cancelOrder Tier-1b decision).",
     {
       symbol: z.string().describe("Trading pair symbol, e.g., BTC, ETH, etc."),
-      price: z.string().describe("New order price as a decimal string, e.g. '65100'"),
-      amount: z.string().optional().describe("Optional new order amount as a decimal string, e.g. '0.002'; omit to keep the current size"),
-      order_id: z.number().describe("ID of the order to edit")
+      price: priceString.describe("New order price as a decimal string, e.g. '65100'"),
+      amount: amountString.optional().describe("Optional new order amount as a decimal string, e.g. '0.002'; omit to keep the current size"),
+      order_id: z.number().int().min(0).describe("ID of the order to edit")
     },
     async ({ symbol, price, amount, order_id }) => {
-      const body = signRequest('edit_order', { symbol, price, amount, order_id });
-      return makeRequest('POST', '/api/v1/orders/edit', body);
+      // Editing is a cancel-and-replace, so a raised amount is a new position increase
+      // and has to clear the same ceiling as a fresh order.
+      if (amount !== undefined) {
+        const tooLarge = checkCeiling(amount, MAX_ORDER_AMOUNT, {
+          label: `Edited order amount for ${symbol}`,
+          envVar: 'PACIFICA_MAX_ORDER_AMOUNT',
+        });
+        if (tooLarge) return refuse(tooLarge);
+      }
+      return submitSigned('edit_order', '/api/v1/orders/edit', { symbol, price, amount, order_id });
     }
   );
 
@@ -172,11 +211,12 @@ export function registerOrderTools(server: McpServer): void {
       side: z.enum(['bid', 'ask']).describe("CLOSING side, opposite of the position: 'ask' to protect a long, 'bid' to protect a short"),
       take_profit: stopOrderInfoSchema.optional().describe("Optional take-profit StopOrderInfo (decimal-string prices)"),
       stop_loss: stopOrderInfoSchema.optional().describe("Optional stop-loss StopOrderInfo (decimal-string prices)"),
-      builder_code: z.string().optional().describe("Optional builder code (3-16 alphanumeric characters)"),
+      builder_code: builderCode.optional().describe("Optional builder code (3-16 alphanumeric characters)"),
     },
     async ({ symbol, side, take_profit, stop_loss, builder_code }) => {
-      const body = signRequest('set_position_tpsl', { symbol, side, take_profit, stop_loss, builder_code });
-      return makeRequest('POST', '/api/v1/positions/tpsl', body);
+      return submitSigned('set_position_tpsl', '/api/v1/positions/tpsl', {
+        symbol, side, take_profit, stop_loss, builder_code,
+      });
     }
   );
 
@@ -185,11 +225,12 @@ export function registerOrderTools(server: McpServer): void {
     "Adds USDC margin to an ISOLATED position. amount is a decimal string. Example: { \"symbol\": \"BTC\", \"amount\": \"10\" }. Returns { \"success\": true }. Fails if the position on the symbol is not in isolated margin mode. Use updateMarginMode to set isolated mode before opening the position.",
     {
       symbol: z.string().describe("Trading pair symbol, e.g., BTC, ETH, etc."),
-      amount: z.string().describe("USDC amount to add as a decimal string, e.g. '10'")
+      amount: amountString.describe("USDC amount to add as a decimal string, e.g. '10'")
     },
     async ({ symbol, amount }) => {
-      const body = signRequest('add_isolated_margin', { symbol, amount });
-      return makeRequest('POST', '/api/v1/positions/add_isolated_margin', body);
+      return submitSigned('add_isolated_margin', '/api/v1/positions/add_isolated_margin', {
+        symbol, amount,
+      });
     }
   );
 
@@ -198,19 +239,27 @@ export function registerOrderTools(server: McpServer): void {
     "Creates a TWAP (time-weighted average price) order that splits the total amount into market sub-orders spread over duration_in_seconds. Amount and slippage_percent are decimal strings. Example: { \"symbol\": \"BTC\", \"amount\": \"0.01\", \"side\": \"bid\", \"reduce_only\": false, \"slippage_percent\": \"1\", \"duration_in_seconds\": 3600 }. Returns { \"order_id\": 12345 }. Open TWAPs appear in getOpenTwapOrders and are cancelled with cancelTwapOrder.",
     {
       symbol: z.string().describe("Trading pair symbol, e.g., BTC, ETH, etc."),
-      amount: z.string().describe("Total quantity as a decimal string"),
+      amount: amountString.describe("Total quantity as a decimal string"),
       side: z.enum(['bid', 'ask']).describe("Order direction: 'bid' (buy) or 'ask' (sell)"),
       reduce_only: z.boolean().describe("Whether the order may only reduce an existing position"),
-      slippage_percent: z.string().describe("Max slippage per sub-order as a decimal-string percentage, e.g. '1'"),
-      duration_in_seconds: z.number().int().describe("Total execution window in seconds, e.g. 3600"),
+      slippage_percent: percentString.describe("Max slippage per sub-order as a decimal-string percentage, e.g. '1'"),
+      // Bounded to one minute .. seven days. The value schedules unattended market
+      // sub-orders, so an accidental extra digit leaves the account executing into the
+      // book long after the reasoning that produced the order stopped being current.
+      duration_in_seconds: z.number().int().min(60).max(604_800)
+        .describe("Total execution window in seconds, 60 to 604800 (7 days), e.g. 3600"),
       client_order_id: z.string().uuid().optional().describe("Optional client-supplied UUID"),
-      builder_code: z.string().optional().describe("Optional builder code (3-16 alphanumeric characters)"),
+      builder_code: builderCode.optional().describe("Optional builder code (3-16 alphanumeric characters)"),
     },
     async ({ symbol, amount, side, reduce_only, slippage_percent, duration_in_seconds, client_order_id, builder_code }) => {
-      const body = signRequest('create_twap_order', {
+      const tooLarge = checkCeiling(amount, MAX_ORDER_AMOUNT, {
+        label: `TWAP total amount for ${symbol}`,
+        envVar: 'PACIFICA_MAX_ORDER_AMOUNT',
+      });
+      if (tooLarge) return refuse(tooLarge);
+      return submitSigned('create_twap_order', '/api/v1/orders/twap/create', {
         symbol, amount, side, reduce_only, slippage_percent, duration_in_seconds, client_order_id, builder_code,
       });
-      return makeRequest('POST', '/api/v1/orders/twap/create', body);
     }
   );
 
@@ -219,11 +268,10 @@ export function registerOrderTools(server: McpServer): void {
     "Cancels an existing TWAP order by symbol and order ID. Example: { \"symbol\": \"BTC\", \"order_id\": 12345 }. Returns { \"success\": true } on success, or { \"success\": true, \"data\": null } as a no-op for nonexistent TWAPs (this endpoint does not return 404).",
     {
       symbol: z.string().describe("Trading pair symbol, e.g., BTC, ETH, etc."),
-      order_id: z.number().describe("ID of the TWAP order to cancel")
+      order_id: z.number().int().min(0).describe("ID of the TWAP order to cancel")
     },
     async ({ symbol, order_id }) => {
-      const body = signRequest('cancel_twap_order', { symbol, order_id });
-      return makeRequest('POST', '/api/v1/orders/twap/cancel', body);
+      return submitSigned('cancel_twap_order', '/api/v1/orders/twap/cancel', { symbol, order_id });
     }
   );
 
@@ -266,21 +314,99 @@ export function registerOrderTools(server: McpServer): void {
     Edit: 'edit_order',
   };
 
+  // Per-action payload schemas for batchOrders.
+  //
+  // `data` was `z.record(z.any())`: an arbitrary object, unvalidated, signed as-is. That
+  // made the batch tool a bypass for every constraint the single-action tools enforce —
+  // the same order that openOrder would refuse for an unparseable price or an
+  // over-ceiling amount went through unchecked as `{ type: 'Create', data: {...} }`. A
+  // validation layer with a hole in it is worse than none, because the tools that do
+  // validate imply the hole is not there.
+  //
+  // The shapes below mirror the corresponding single-action tools field for field, and
+  // `.strict()` rejects unknown keys: a misspelled `slipage_percent` is now a local
+  // error naming the field, rather than a silently dropped parameter that turns a
+  // slippage-capped market order into an uncapped one.
+  const batchCreateData = z.object({
+    symbol: z.string(),
+    price: priceString,
+    amount: amountString,
+    side: z.enum(['bid', 'ask']),
+    tif: z.enum(['GTC', 'IOC', 'ALO', 'TOB', 'RFQ']),
+    reduce_only: z.boolean(),
+    client_order_id: z.string().uuid().optional(),
+    take_profit: stopOrderInfoSchema.optional(),
+    stop_loss: stopOrderInfoSchema.optional(),
+    builder_code: builderCode.optional(),
+  }).strict();
+
+  const batchCreateMarketData = z.object({
+    symbol: z.string(),
+    amount: amountString,
+    side: z.enum(['bid', 'ask']),
+    slippage_percent: percentString,
+    reduce_only: z.boolean(),
+    client_order_id: z.string().uuid().optional(),
+    take_profit: stopOrderInfoSchema.optional(),
+    stop_loss: stopOrderInfoSchema.optional(),
+    builder_code: builderCode.optional(),
+  }).strict();
+
+  // Cancel and CancelStopOrder take the same locator pair.
+  const batchCancelData = z.object({
+    symbol: z.string(),
+    order_id: z.number().int().min(0),
+  }).strict();
+
+  const batchSetPositionTpslData = z.object({
+    symbol: z.string(),
+    side: z.enum(['bid', 'ask']),
+    take_profit: stopOrderInfoSchema.optional(),
+    stop_loss: stopOrderInfoSchema.optional(),
+    builder_code: builderCode.optional(),
+  }).strict();
+
+  const batchEditData = z.object({
+    symbol: z.string(),
+    price: priceString,
+    amount: amountString.optional(),
+    order_id: z.number().int().min(0),
+  }).strict();
+
   // Batch Orders
   server.tool('batchOrders',
-    "Executes up to 10 order actions in one request. Each action is { type, data } where type is one of Create, CreateMarket, Cancel, SetPositionTpsl, CancelStopOrder, Edit and data is the UNSIGNED payload of the corresponding single-action tool (openOrder, createMarketOrder, cancelOrder, setPositionTpsl, cancelStopOrder, editOrder) -- this tool signs each action individually. Example: { \"actions\": [{ \"type\": \"Create\", \"data\": { \"symbol\": \"BTC\", \"price\": \"60000\", \"amount\": \"0.001\", \"side\": \"bid\", \"tif\": \"ALO\", \"reduce_only\": false } }, { \"type\": \"Cancel\", \"data\": { \"symbol\": \"BTC\", \"order_id\": 123 } }] }. Returns { \"results\": [{ \"success\": true, \"order_id\": 124 }, { \"success\": false, \"error\": \"...\" }] } -- results are per-action. NOTE: a signature failure on ANY action rejects the WHOLE batch (400 \"Invalid signature\"); business failures are per-action (200 with per-action success:false). Batches containing CreateMarket or GTC/IOC Create actions are subject to the ~200ms speed-bump delay.",
+    "Executes up to 10 order actions in one request. Each action is { type, data } where type is one of Create, CreateMarket, Cancel, SetPositionTpsl, CancelStopOrder, Edit and data is the UNSIGNED payload of the corresponding single-action tool (openOrder, createMarketOrder, cancelOrder, setPositionTpsl, cancelStopOrder, editOrder) -- this tool signs each action individually. Example: { \"actions\": [{ \"type\": \"Create\", \"data\": { \"symbol\": \"BTC\", \"price\": \"60000\", \"amount\": \"0.001\", \"side\": \"bid\", \"tif\": \"ALO\", \"reduce_only\": false } }, { \"type\": \"Cancel\", \"data\": { \"symbol\": \"BTC\", \"order_id\": 123 } }] }. Returns { \"results\": [{ \"success\": true, \"order_id\": 124 }, { \"success\": false, \"error\": \"...\" }] } -- results are per-action. NOTE: a signature failure on ANY action rejects the WHOLE batch (400 \"Invalid signature\"); business failures are per-action (200 with per-action success:false). Batches containing CreateMarket or GTC/IOC Create actions are subject to the ~200ms speed-bump delay. Each action's data is validated against the same schema as the equivalent single-action tool, and unknown fields are rejected.",
     {
-      actions: z.array(z.object({
-        type: z.enum(['Create', 'CreateMarket', 'Cancel', 'SetPositionTpsl', 'CancelStopOrder', 'Edit'])
-          .describe("Action kind; selects the op type used to sign this action's data"),
-        data: z.record(z.any())
-          .describe("Unsigned payload for the action, same fields as the corresponding single-action tool"),
-      })).min(1).max(10).describe("1-10 order actions, executed in order"),
+      actions: z.array(
+        z.discriminatedUnion('type', [
+          z.object({ type: z.literal('Create'), data: batchCreateData }),
+          z.object({ type: z.literal('CreateMarket'), data: batchCreateMarketData }),
+          z.object({ type: z.literal('Cancel'), data: batchCancelData }),
+          z.object({ type: z.literal('SetPositionTpsl'), data: batchSetPositionTpslData }),
+          z.object({ type: z.literal('CancelStopOrder'), data: batchCancelData }),
+          z.object({ type: z.literal('Edit'), data: batchEditData }),
+        ]),
+      ).min(1).max(10).describe("1-10 order actions, executed in order"),
     },
     async ({ actions }) => {
+      // The operator ceiling applies per action, and the whole batch is refused if any
+      // one action exceeds it: a batch is submitted atomically as far as signing is
+      // concerned, so there is no partial submission to fall back to.
+      for (const action of actions) {
+        const amount = 'amount' in action.data ? action.data.amount : undefined;
+        if (typeof amount !== 'string') continue;
+        const tooLarge = checkCeiling(amount, MAX_ORDER_AMOUNT, {
+          label: `Batch ${action.type} amount for ${action.data.symbol}`,
+          envVar: 'PACIFICA_MAX_ORDER_AMOUNT',
+        });
+        if (tooLarge) return refuse(`${tooLarge} No part of the batch was submitted.`);
+      }
+
+      if (DRY_RUN) return dryRunResult('batch_orders', { actions });
+
       const signed = actions.map(({ type, data }) => ({
         type,
-        data: signRequest(BATCH_OP_TYPES[type], data),
+        data: signRequest(BATCH_OP_TYPES[type], data as Record<string, any>),
       }));
       return makeRequest('POST', '/api/v1/orders/batch', { actions: signed });
     }

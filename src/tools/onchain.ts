@@ -9,6 +9,7 @@ import bs58 from 'bs58';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { classifyBaseUrl } from '../helpers.js';
 
 // @coral-xyz/anchor ships as CommonJS. Under this project's `module: NodeNext`
 // ESM output, BN is reachable only via the default export — the namespace member
@@ -23,6 +24,37 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // All token amounts on Pacifica use 6 decimals (USDC/USDP); the programs take a
 // base-unit u64.
 export const USDC_DECIMALS = 1_000_000;
+export const USDC_DECIMAL_PLACES = 6;
+
+/**
+ * Convert a plain decimal string to integer base units, exactly.
+ *
+ * The previous form was `new BN(Math.round(amount * USDC_DECIMALS))` over a
+ * `number`. Two problems, both of which move the wrong quantity of real money:
+ *
+ *  - `4200.69` (and most amounts with cents) is not representable in binary floating
+ *    point, so the base-unit count depended on which way the product happened to round.
+ *  - Above 2^53 base units a `number` cannot represent the value at all, and `Math.round`
+ *    silently returns the nearest representable double instead of failing.
+ *
+ * Splitting the string on the decimal point and padding the fraction keeps the value in
+ * exact integer arithmetic from end to end: what the caller wrote is what is encoded.
+ * The input is expected to have already passed `amountString` from src/limits.ts, so the
+ * shape check here is a guard against a future caller, not the primary validation.
+ */
+export function toBaseUnits(amount: string, decimals = USDC_DECIMAL_PLACES): bigint {
+  if (!/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(amount)) {
+    throw new Error(`Amount ${JSON.stringify(amount)} is not a plain decimal string.`);
+  }
+  const [whole, fraction = ''] = amount.split('.');
+  if (fraction.length > decimals) {
+    throw new Error(
+      `Amount ${amount} has ${fraction.length} decimal places; the token supports ${decimals}. ` +
+      `Rounding it here would silently change the amount, so it is refused instead.`,
+    );
+  }
+  return BigInt(whole + fraction.padEnd(decimals, '0'));
+}
 
 // Pacifica bridge/exchange program ids (perp-backend common/src/constants.rs,
 // BRIDGE_PROGRAM_ID). The testnet id also comes from the shipped IDL via
@@ -85,9 +117,19 @@ export interface OnchainConfig {
 //   PACIFICA_USDC_MINT   - collateral mint (defaults per network)
 // Returns a string error (instead of throwing) if an override is not valid
 // base58, so the caller can surface it without risking a wrong-account send.
+//
+// The network comes from `classifyBaseUrl`, an explicit host table. It used to be
+// `baseUrl.includes('test-api.pacifica.fi') ? 'testnet' : 'mainnet'`, which made
+// mainnet the fallback for every URL that did not match — a typo, an http:// URL, a
+// local proxy, an empty string. Since the network chooses the program id and the USDC
+// mint, that fallback pointed real-funds instructions at mainnet accounts whenever the
+// configuration was wrong in any way. An unknown host is now an error the caller
+// surfaces, and mainnet has to be arrived at deliberately.
 export function resolveOnchainConfig(baseUrl: string): OnchainConfig | { error: string } {
-  const isTestnet = baseUrl.includes('test-api.pacifica.fi');
-  const network: PacificaNetwork = isTestnet ? 'testnet' : 'mainnet';
+  const classified = classifyBaseUrl(baseUrl);
+  if ('error' in classified) return classified;
+  const network: PacificaNetwork = classified.network;
+  const isTestnet = network === 'testnet';
 
   const programIdStr = process.env.PACIFICA_PROGRAM_ID
     ?? (isTestnet ? idlProgramId() : MAINNET_PROGRAM_ID);
