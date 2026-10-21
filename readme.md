@@ -10,7 +10,9 @@ place trades on your behalf.
 
 ### Prerequisites
 
-- **Node.js 18 or newer**
+- **Node.js 22.23.4+, 24.22.1+, or 26.12.1+** on a supported release line (Node 24 LTS recommended).
+- Update the Node.js runtime used by your MCP client and restart the server.
+  Updating this npm package does not update Node.js.
 - A **Pacifica account address** (your main account or a subaccount)
 - For trading (optional): a signing key — either your main wallet's secret key
   or, recommended, a revocable **agent key** bound to your account

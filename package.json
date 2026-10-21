@@ -1,6 +1,6 @@
 {
 	"name": "@pacifica-fi/mcp-server",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "MCP server for the Pacifica perpetual-futures exchange API",
 	"type": "module",
 	"license": "MIT",
@@ -22,7 +22,7 @@
 		"solana"
 	],
 	"engines": {
-		"node": ">=18"
+		"node": "^22.23.4 || ^24.22.1 || >=26.12.1"
 	},
 	"bin": {
 		"mcp-server-pacifica": "dist/index.js"
@@ -32,6 +32,11 @@
 	],
 	"publishConfig": {
 		"access": "public"
+	},
+	"overrides": {
+		"jayson": {
+			"uuid": "^11.1.0"
+		}
 	},
 	"scripts": {
 		"build": "tsc && shx chmod +x dist/*.js && shx cp -r src/idl dist/",
@@ -66,8 +71,14 @@
 	},
 	"devDependencies": {
 		"@types/node": "^22.13.10",
-		"shx": "^0.3.4",
+		"shx": "^0.4.0",
 		"typescript": "^5.8.2",
 		"tsx": "^4.0.0"
+	},
+	"allowScripts": {
+		"bigint-buffer@1.1.5": true,
+		"bufferutil@4.1.0": true,
+		"esbuild@0.28.0": true,
+		"utf-8-validate@6.0.6": true
 	}
 }
