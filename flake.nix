@@ -11,8 +11,8 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
-        # The published package targets node >=18 and CI runs on node 20; node 24
-        # is a superset and matches the sibling repos' toolchain. Pinned via
+        # The published package targets node >=18 and CI runs on node 24, which
+        # matches the sibling repos' toolchain. Pinned via
         # flake.lock for reproducibility.
         nodejs = pkgs.nodejs_24;
       in
