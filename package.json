@@ -28,19 +28,27 @@
 		"mcp-server-pacifica": "dist/index.js"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"npm-shrinkwrap.json"
+	],
+	"bundleDependencies": [
+		"@coral-xyz/anchor"
 	],
 	"publishConfig": {
 		"access": "public"
 	},
 	"overrides": {
+		"@coral-xyz/anchor": {
+			"toml": "^4.2.0"
+		},
 		"jayson": {
-			"uuid": "^11.1.0"
+			"uuid": "^11.1.1"
 		}
 	},
 	"scripts": {
-		"build": "tsc && shx chmod +x dist/*.js && shx cp -r src/idl dist/",
+		"build": "node scripts/build.mjs",
 		"test": "tsc --noEmit",
+		"test:security": "tsx --test scripts/security-regression.test.ts",
 		"prepare": "npm run build",
 		"watch": "tsc --watch",
 		"dev": "tsx watch src/index.ts",
@@ -61,24 +69,21 @@
 	},
 	"dependencies": {
 		"@coral-xyz/anchor": "^0.30.1",
-		"@modelcontextprotocol/sdk": "^1.7.0",
-		"@solana/spl-token": "^0.4.9",
+		"@modelcontextprotocol/sdk": "^1.32.1",
 		"@solana/web3.js": "^1.98.0",
 		"bs58": "^6.0.0",
 		"tweetnacl": "^1.0.3",
-		"axios": "^1.8.4",
+		"axios": "^1.20.0",
 		"zod": "^3.24.2"
 	},
 	"devDependencies": {
 		"@types/node": "^22.13.10",
-		"shx": "^0.4.0",
 		"typescript": "^5.8.2",
 		"tsx": "^4.0.0"
 	},
 	"allowScripts": {
-		"bigint-buffer@1.1.5": true,
 		"bufferutil@4.1.0": true,
-		"esbuild@0.28.0": true,
+		"esbuild@0.28.2": true,
 		"utf-8-validate@6.0.6": true
 	}
 }
