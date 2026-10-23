@@ -244,11 +244,17 @@ npm install        # install dependencies
 npm run build      # type-check + emit dist/
 npm run dev        # run the server from source (tsx watch)
 npm test           # type-check only (tsc --noEmit)
+npm run test:security # dependency compatibility and token address checks
 npm run gen:keys   # generate 2 fresh keypairs (main + agent)
 npm run smoke:3a   # live testnet smoke tests (read-only; signed suites need creds)
 npm run smoke:faucet  # faucet tests (offline by default; live mint needs creds + flag)
 npm run smoke:deposit # deposit tests (offline by default; live deposit needs creds + flag)
 ```
+
+The published CLI includes `npm-shrinkwrap.json` so npm installs the tested dependency versions.
+Anchor and its dependencies are bundled to preserve the patched TOML parser selected by `overrides` in `package.json` when the CLI is installed as a dependency.
+After dependency changes, run `npm audit`, `npm run test:security`, and the offline faucet and deposit checks.
+Also install a packed copy in a temporary project and audit it before publishing.
 
 The `scripts/` directory contains live smoke tests against the Pacifica testnet
 (`npm run smoke:1a`, `smoke:agent`, etc.). Tests that need credentials are skipped

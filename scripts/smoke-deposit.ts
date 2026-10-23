@@ -26,7 +26,7 @@
  *   (SOLANA_RPC_URL optional; defaults to the public devnet RPC, same as the server.)
  */
 import { Connection, PublicKey, Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { ata as getAssociatedTokenAddressSync } from '../src/tools/onchain.js';
 import bs58 from 'bs58';
 import { log, ok, no, privateKey, BASE_URL, get } from './signing-helpers.js';
 import {

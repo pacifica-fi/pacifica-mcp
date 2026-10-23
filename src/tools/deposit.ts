@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from './onchain.js';
 import { privateKey, SOLANA_RPC_URL, BASE_URL, type ApiResponse } from '../helpers.js';
 import {
   BN,

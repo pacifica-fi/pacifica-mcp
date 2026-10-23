@@ -32,7 +32,7 @@
  */
 import { Connection, PublicKey, Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
-import { getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { ata as getAssociatedTokenAddressSync } from '../src/tools/onchain.js';
 import bs58 from 'bs58';
 import { log, ok, no, privateKey } from './signing-helpers.js';
 import {

@@ -4,7 +4,6 @@
 // faucet.ts and deposit.ts do not duplicate it.
 import { Connection, PublicKey, Keypair, Transaction } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
-import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import bs58 from 'bs58';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +22,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // All token amounts on Pacifica use 6 decimals (USDC/USDP); the programs take a
 // base-unit u64.
 export const USDC_DECIMALS = 1_000_000;
+
+export const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+export const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 
 // Pacifica bridge/exchange program ids (perp-backend common/src/constants.rs,
 // BRIDGE_PROGRAM_ID). The testnet id also comes from the shipped IDL via
@@ -66,7 +68,13 @@ export function deriveCentralState(programId: PublicKey): PublicKey {
 // Associated token account for an arbitrary owner. `offCurve` must be true when
 // the owner is a PDA (e.g. central_state for the exchange vault).
 export function ata(mint: PublicKey, owner: PublicKey, offCurve = false): PublicKey {
-  return getAssociatedTokenAddressSync(mint, owner, offCurve);
+  if (!offCurve && !PublicKey.isOnCurve(owner.toBuffer())) {
+    throw new Error('Token owner must be on curve unless offCurve is enabled.');
+  }
+  return PublicKey.findProgramAddressSync(
+    [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+  )[0];
 }
 
 export type PacificaNetwork = 'testnet' | 'mainnet';
