@@ -48,6 +48,7 @@
 	"scripts": {
 		"build": "node scripts/build.mjs",
 		"test": "tsc --noEmit",
+		"test:markets": "tsx --test scripts/market-regression.test.ts",
 		"test:security": "tsx --test scripts/security-regression.test.ts",
 		"prepare": "npm run build",
 		"watch": "tsc --watch",

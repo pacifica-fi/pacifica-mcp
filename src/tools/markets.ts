@@ -18,8 +18,8 @@ export function registerMarketTools(server: McpServer): void {
     {
       symbol: z.string()
         .describe("Trading pair symbol, e.g., BTC, ETH, etc."),
-      interval: z.enum(['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '8h', '12h', '1d'])
-        .describe("Candlestick interval. Valid values: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 8h, 12h, 1d"),
+      interval: z.enum(['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '8h', '12h', '1d', '1w', '1M'])
+        .describe("Candlestick interval. Valid values: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 8h, 12h, 1d, 1w, 1M (month; 1m is minute)"),
       start_time: z.number()
         .describe("Start time as a millisecond timestamp (integer). Required."),
       end_time: z.number().optional()
@@ -86,8 +86,8 @@ export function registerMarketTools(server: McpServer): void {
     "Retrieves mark-price candlestick (K-line) data for a trading pair and time interval. Example: { \"symbol\": \"BTC\", \"interval\": \"1m\", \"start_time\": 1742243160000 }. Returns a `{ success, data, error, code }` envelope with the same candle shape as getKline. volume is always '0' for mark price klines.",
     {
       symbol: z.string().describe("Trading pair symbol, e.g., BTC, ETH, etc."),
-      interval: z.enum(['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '8h', '12h', '1d'])
-        .describe("Candlestick interval. Valid values: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 8h, 12h, 1d"),
+      interval: z.enum(['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '8h', '12h', '1d', '1w', '1M'])
+        .describe("Candlestick interval. Valid values: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 8h, 12h, 1d, 1w, 1M (month; 1m is minute)"),
       start_time: z.number().describe("Start time as a millisecond timestamp (integer). Required."),
       end_time: z.number().optional().describe("End time as a millisecond timestamp (integer). Optional."),
       limit: z.number().int().optional().describe("Maximum number of candles to return (optional).")

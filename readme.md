@@ -244,6 +244,7 @@ npm install        # install dependencies
 npm run build      # type-check + emit dist/
 npm run dev        # run the server from source (tsx watch)
 npm test           # type-check only (tsc --noEmit)
+npm run test:markets # offline market-tool schema and request checks
 npm run test:security # dependency compatibility and token address checks
 npm run gen:keys   # generate 2 fresh keypairs (main + agent)
 npm run smoke:3a   # live testnet smoke tests (read-only; signed suites need creds)
